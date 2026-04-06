@@ -22,6 +22,7 @@ export const fetchNearbyRestaurants = async (lat: number, lon: number, radius = 
     const baseLat = lat || 21.0285;
     const baseLon = lon || 105.8542;
 
+    //mở rộng phạm vi tìm kiếm
     const offset = 0.025;
     const scanPoints = [
         { lat: baseLat, lon: baseLon },

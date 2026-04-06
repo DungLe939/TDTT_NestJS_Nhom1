@@ -9,9 +9,9 @@ export class SchedulerController {
   @Post('searchLocation')
   async searchLocation(@Body() searchDto: SearchLocationDto) {
     try {
-      const guestId = 'guest_hcmus_01'; // Tạm thời
+      const guestId = 'guest_hcmus_01'; //sau này được tạo từ middleware
 
-      // Truyền mỗi keyword vào Service, để Service tự lo phần tọa độ
+      // Truyền keyword vào Service
       const result = await this.schedulerService.processSearchLocation(searchDto.keyword, guestId);
 
       if (!result) {

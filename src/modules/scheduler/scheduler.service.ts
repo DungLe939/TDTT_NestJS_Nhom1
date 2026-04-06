@@ -2,12 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { db } from '../../providers/firebase.provider';
 import { fetchNearbyRestaurants } from './utils/fetch-locationiq';
 import { fakeRemainingData } from './utils/fake-data';
-import axios from 'axios'; // Dùng axios trong NestJS cho chuyên nghiệp
+import axios from 'axios';
 
 @Injectable()
 export class SchedulerService {
 
-    // Hàm lấy tọa độ từ Keyword (Geocoding)
+    // Hàm lấy tọa độ từ Keyword 
     private async getCoordsFromKeyword(keyword: string) {
         try {
             const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(keyword)}&format=json&limit=1`;
@@ -30,13 +30,13 @@ export class SchedulerService {
     }
 
     async processSearchLocation(keyword: string, guestId: string) {
-        // 1. Tự lấy tọa độ từ keyword
+        // lấy tọa độ từ keyword
         const coords = await this.getCoordsFromKeyword(keyword);
         if (!coords) return null;
 
         const { lat, lng } = coords;
 
-        // 2. Xóa dữ liệu cũ của guest này trong Firestore
+        // Xóa dữ liệu cũ của guest này trong Firestore
         const batch = db.batch();
         const oldDocs = await db.collection('restaurants')
             .where('guest_id', '==', guestId)
@@ -44,13 +44,13 @@ export class SchedulerService {
 
         oldDocs.forEach((doc) => batch.delete(doc.ref));
 
-        // 3. Lấy dữ liệu quán ăn từ Overpass
+        // Lấy dữ liệu quán ăn từ locationiq
         const rawData = await fetchNearbyRestaurants(lat, lng);
 
-        // 4. Fake dữ liệu cho đủ Schema
+        // Fake dữ liệu cho đủ Schema
         const fullData = fakeRemainingData(rawData, guestId);
 
-        // 5. Lưu vào Firestore
+        // Lưu vào Firestore
         fullData.forEach((item) => {
             const docRef = db.collection('restaurants').doc();
             batch.set(docRef, item);
