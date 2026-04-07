@@ -1,0 +1,76 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { RestaurantDto } from "../../restaurants/dto/restaurant.dto";
+
+@Injectable()
+export class GeminiScoringHelper {
+    private genAI: GoogleGenerativeAI;
+    private model: any;
+
+    constructor() {
+        const apiKey = process.env.GEMINI_API_KEY!;
+        this.genAI = new GoogleGenerativeAI(apiKey);
+        this.model = this.genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+    }
+
+    async scoreRestaurantsWithAI(restaurants: RestaurantDto[], preferences: any, mealBudgets: any) {
+        const prompt = `
+            Bạn là một AI chuyên gia phân tích ẩm thực và du lịch tại Việt Nam.
+            NHIỆM VỤ: Chấm điểm danh sách nhà hàng dựa trên hồ sơ khách hàng.
+
+            HỒ SƠ KHÁCH HÀNG:
+            - Sở thích: ${preferences.favoriteFoods?.join(", ")}
+            - Không thích: ${preferences.dislikedFoods?.join(", ")}
+            - Dị ứng (LOẠI BỎ NGAY): ${preferences.allergies?.join(", ")}
+            - Khẩu vị: ${preferences.states?.join(", ")}
+
+            NGÂN SÁCH MỤC TIÊU (VND):
+            - Sáng: ${mealBudgets.morning}, Trưa: ${mealBudgets.lunch}, Tối: ${mealBudgets.dinner}
+
+            DANH SÁCH NHÀ HÀNG (JSON):
+            ${JSON.stringify(restaurants)}
+
+            QUY TẮC CHẤM ĐIỂM (TỔNG ĐIỂM CÓ THỂ > 100):
+            1. Phù hợp buổi (Sáng/Trưa/Tối): +50đ (Dựa vào Menu và tên quán).
+            2. Phù hợp sở thích/khẩu vị: +30đ.
+            3. Phù hợp ngân sách: +30đ (Giá món chính gần bằng ngân sách mục tiêu).
+            4. Món trùng lặp danh mục đã ăn: không cộng điểm.
+            5. LOẠI BỎ (Điểm = -999) nếu: Chứa thành phần dị ứng, món khách không thích, hoặc NGOÀI GIỜ HOẠT ĐỘNG (Sáng: 7-9h, Trưa: 11-13h, Tối: 17-21h).
+
+            YÊU CẦU TRẢ VỀ JSON NGHIÊM NGẶT (Mảng các đối tượng):
+            lưu ý : 
+                - id lấy từ Database phải chính xác nhé
+                - Thêm trường "category" cho mỗi món ăn. 
+                    Ví dụ "bún bò", "bún chả", "bún đậu mắm tôm",.. thì đều gắn category là "bún"
+                    "phở bò", "phở bò tái nạm", "phở bò chín",.. thì đều gắn category là "phở",....
+                    Việc bạn thêm trường này sẽ giúp tôi phân loại món ăn chính xác hơn
+            [{
+                "id": "...",
+                "restaurantName": "...",
+                "menu": [
+                {
+                    "name": "...",
+                    "price": number,
+                    "score": number,
+                    "category": "..."
+                }
+                ],
+                "scores": {
+                "breakfast": number,
+                "lunch": number,
+                "dinner": number
+                }
+            }]
+            `;
+
+        try {
+            const result = await this.model.generateContent(prompt);
+            const responseText = result.response.text().replace(/```json|```/g, "").trim();
+            return JSON.parse(responseText);
+        } catch (error) {
+            console.error("Gemini Scoring Error:", error);
+            return [];
+        }
+    }
+}

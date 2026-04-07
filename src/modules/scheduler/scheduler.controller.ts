@@ -1,4 +1,4 @@
-import { Controller, Post, Body, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Post, Body, InternalServerErrorException, HttpStatus, Res } from '@nestjs/common';
 import { SchedulerService } from './scheduler.service';
 import { SearchLocationDto } from './dto/search-location.dto';
 
@@ -27,5 +27,19 @@ export class SchedulerController {
     } catch (error) {
       throw new InternalServerErrorException(error.message);
     }
+  }
+
+  @Post('generatePlan')
+  async generatePlan(@Body() body: any) {
+    // Giả sử guest_id được lấy từ middleware sau này
+    const guestId = 'guest_hcmus_01';
+
+    const result = await this.schedulerService.createTravelPlan(body, guestId);
+
+    // NestJS tự động hiểu return object là trả về JSON với status 201 (hoặc 200)
+    return {
+      success: true,
+      ...result
+    };
   }
 }

@@ -3,9 +3,17 @@ import { db } from '../../providers/firebase.provider';
 import { fetchNearbyRestaurants } from './utils/fetch-locationiq';
 import { fakeRemainingData } from './utils/fake-data';
 import axios from 'axios';
+import { ClusteringHelper } from './algorithms/k-means';
+import { ScoringHelper } from './utils/scoring';
+import { RawFilterHelper } from './utils/raw-filter';
 
 @Injectable()
 export class SchedulerService {
+    constructor(
+        private readonly rawFilterHelper: RawFilterHelper,
+        private readonly clusteringHelper: ClusteringHelper,
+        private readonly scoringHelper: ScoringHelper
+    ) { }
 
     // Hàm lấy tọa độ từ Keyword 
     private async getCoordsFromKeyword(keyword: string) {
@@ -59,5 +67,93 @@ export class SchedulerService {
         await batch.commit();
 
         return fullData;
+    }
+
+    async createTravelPlan(body: any, guest_id: string) {
+        const { budget, currentLocation, preferences, travelDays } = body;
+
+        // Phân bổ ngân sách theo từng buổi
+        const dailyBudget = budget / travelDays;
+        const mealBudgetConfig = {
+            morning: dailyBudget * 0.2, // 20% cho bữa sáng
+            lunch: dailyBudget * 0.3,   // 30% cho bữa trưa
+            dinner: dailyBudget * 0.5    // 50% cho bữa tối
+        };
+
+        // Xác định maxPriceRange (Range 2 hoặc 3 dựa trên ngân sách bữa tối)
+        let globalMaxPriceRange = 2;
+        if (mealBudgetConfig.dinner > 200000) globalMaxPriceRange = 3;
+
+        // Lọc thô (Raw Filter)
+        const rawRestaurants = await this.rawFilterHelper.rawData(currentLocation, globalMaxPriceRange, guest_id);
+
+        if (!rawRestaurants || rawRestaurants.length === 0) {
+            return {
+                info: { totalBudget: budget, days: travelDays, suggestedMealBudget: mealBudgetConfig },
+                count: 0,
+                plan: []
+            };
+        }
+
+        // Chia cụm (Clustering)
+        const orderedPlan = this.clusteringHelper.clusteringStep(rawRestaurants, travelDays, currentLocation);
+
+        // Chấm điểm và lên kế hoạch cuối cùng (Scoring)
+        const finalPlanRaw = await this.scoringHelper.generateFinalPlan(orderedPlan, mealBudgetConfig, preferences);
+
+        // Bơm đầy đủ dữ liệu theo RestaurantDto để gửi về Frontend
+        const detailedPlan = finalPlanRaw.map(dayPlan => {
+            const enrichedMeals = {};
+            const sessions = ['breakfast', 'lunch', 'dinner'];
+
+            for (const session of sessions) {
+                const aiChoice = dayPlan.meals[session];
+
+                if (!aiChoice) continue; // Chống crash hệ thống nếu ngày hôm đó AI hoặc Thuật toán chưa chọn được món
+
+                // Tìm quán gốc trong danh sách ban đầu dựa trên ID
+                const originalData = rawRestaurants.find(r => r.id === aiChoice.id);
+
+                if (originalData) {
+                    enrichedMeals[session] = {
+                        // Thông tin từ AI (Món ăn cụ thể và lý do)
+                        dish: aiChoice.dish,
+                        price: aiChoice.price,
+                        reason: aiChoice.reason,
+                        category: aiChoice.category,
+
+                        // Thông tin gốc từ RestaurantDto (Dữ liệu cố định)
+                        id: originalData.id,
+                        name: originalData.name,
+                        address: originalData.address || "Địa chỉ đang cập nhật",
+                        location: originalData.location,
+                        priceRange: originalData.priceRange,
+                        rating: originalData.rating || 4.0,
+                        openingHours: originalData.openingHours,
+                        menu: originalData.menu,
+                        guest_id: originalData.guest_id
+                    };
+                } else {
+                    enrichedMeals[session] = aiChoice;
+                }
+            }
+
+            return {
+                day: dayPlan.day,
+                meals: enrichedMeals
+            };
+        });
+
+        // Kết quả cuối cùng trả về cho Client
+        return {
+            success: true,
+            info: {
+                totalBudget: budget,
+                days: travelDays,
+                suggestedMealBudget: mealBudgetConfig
+            },
+            count: rawRestaurants.length,
+            plan: detailedPlan,
+        };
     }
 }

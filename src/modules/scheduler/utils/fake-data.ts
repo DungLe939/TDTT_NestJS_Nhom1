@@ -1,12 +1,8 @@
-interface MenuItem {
-    name: string;
-    price: number;
-    description: string;
-    isSignature?: boolean;
-}
+import { MenuItemDto } from "../../restaurants/dto/menu-item.dto";
+import { RestaurantDto } from "../../restaurants/dto/restaurant.dto";
 
 export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
-    const pools: Record<string, MenuItem[]> = {
+    const pools: Record<string, MenuItemDto[]> = {
         restaurant: [
             // --- CƠM, MÌ, PHỞ (ĂN NO) ---
             { name: "Cơm tấm sườn bì chả", price: 55000, description: "Sườn nướng than hồng, vị đậm đà truyền thống" },
@@ -174,23 +170,24 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
     };
 
     return rawRestaurants.map(res => {
-        const cuisineLower = res.cuisine.toLowerCase();
+        const cuisineLower = (res.cuisine || 'restaurant').toLowerCase();
         const category = pools[cuisineLower] ? cuisineLower : 'restaurant';
         const currentPool = pools[category];
 
         const menuSize = Math.floor(Math.random() * 3) + 3;
-        const shuffledMenu = [...currentPool]
+        const shuffledMenu: MenuItemDto[] = [...currentPool]
             .sort(() => Math.random() - 0.5)
             .slice(0, menuSize)
             .map(item => ({
-                ...item,
+                name: item.name,
                 price: item.price + (Math.floor(Math.random() * 11) - 5) * 1000,
-                isSignature: Math.random() > 0.8
+                description: item.description
             }));
 
-        return {
-            ...res,
-            category: category.charAt(0).toUpperCase() + category.slice(1),
+        const restaurant: RestaurantDto = {
+            name: res.name,
+            address: res.address,
+            location: res.location,
             priceRange: category === 'cafe' ? 1 : Math.floor(Math.random() * 2) + 2,
             rating: parseFloat((Math.random() * 1.5 + 3.5).toFixed(1)),
             menu: shuffledMenu,
@@ -198,8 +195,9 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
                 open: category === 'cafe' ? "06:30" : "10:00",
                 close: category === 'pub' ? "23:59" : "22:00"
             },
-            guest_id: guestId,
-            createdAt: new Date().toISOString()
+            guest_id: guestId
         };
+
+        return restaurant;
     });
 };

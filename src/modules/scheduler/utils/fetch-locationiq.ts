@@ -48,8 +48,9 @@ export const fetchNearbyRestaurants = async (lat: number, lon: number, radius = 
                     data.forEach(el => {
                         const hasName = el.name && el.name.trim() !== "";
                         const hasAddress = el.display_name && el.display_name.trim() !== "";
+                        const hasLocation = el.lat && el.lon;
 
-                        if (hasName && hasAddress && !seenIds.has(el.place_id)) {
+                        if (hasName && hasAddress && hasLocation && !seenIds.has(el.place_id)) {
                             seenIds.add(el.place_id);
 
                             const addr = el.address || {};
@@ -67,7 +68,6 @@ export const fetchNearbyRestaurants = async (lat: number, lon: number, radius = 
                                     type: "Point",
                                     coordinates: [parseFloat(el.lon), parseFloat(el.lat)]
                                 },
-                                cuisine: el.type || el.tag_type || "Đa dạng"
                             });
                         }
                     });
