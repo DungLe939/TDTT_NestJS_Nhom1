@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { SchedulerService } from './scheduler.service';
 import { SchedulerController } from './scheduler.controller';
+import { GuestSessionMiddleware } from '../../common/middlewares/guest-session.middleware';
 
 import { ClusteringHelper } from './algorithms/k-means';
 import { SortingHelper } from './algorithms/sorting';
@@ -21,4 +22,10 @@ import { GeminiGenerateScheduleHelper } from './utils/gemini-generate-schelude';
     GeminiGenerateScheduleHelper
   ],
 })
-export class SchedulerModule { }
+export class SchedulerModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(GuestSessionMiddleware)
+      .forRoutes(SchedulerController);
+  }
+}

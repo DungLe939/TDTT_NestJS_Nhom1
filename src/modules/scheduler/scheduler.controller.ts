@@ -1,4 +1,5 @@
-import { Controller, Post, Body, InternalServerErrorException, HttpStatus, Res } from '@nestjs/common';
+import { Controller, Post, Body, InternalServerErrorException, HttpStatus, Res, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { SchedulerService } from './scheduler.service';
 import { SearchLocationDto } from './dto/search-location.dto';
 
@@ -7,9 +8,9 @@ export class SchedulerController {
   constructor(private readonly schedulerService: SchedulerService) { }
 
   @Post('searchLocation')
-  async searchLocation(@Body() searchDto: SearchLocationDto) {
+  async searchLocation(@Body() searchDto: SearchLocationDto, @Req() req: Request) {
     try {
-      const guestId = 'guest_hcmus_01'; //sau này được tạo từ middleware
+      const guestId = (req as any).guest_id;
 
       // Truyền keyword vào Service
       const result = await this.schedulerService.processSearchLocation(searchDto.keyword, guestId);
@@ -30,9 +31,8 @@ export class SchedulerController {
   }
 
   @Post('generatePlan')
-  async generatePlan(@Body() body: any) {
-    // Giả sử guest_id được lấy từ middleware sau này
-    const guestId = 'guest_hcmus_01';
+  async generatePlan(@Body() body: any, @Req() req: Request) {
+    const guestId = (req as any).guest_id;
 
     const result = await this.schedulerService.createTravelPlan(body, guestId);
 
