@@ -56,7 +56,17 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
             { name: "Gỏi ngó sen tôm thịt", price: 85000, description: "Vị chua ngọt, tôm thịt tươi ngon" },
             { name: "Đuôi bò hầm thuốc bắc", price: 180000, description: "Bổ dưỡng, nước dùng đậm đà" },
             { name: "Cá kho khoai môn", price: 120000, description: "Cá béo, khoai môn bùi" },
-            { name: "Canh chua cá lóc", price: 95000, description: "Đậm chất miền Tây Nam Bộ" }
+            { name: "Canh chua cá lóc", price: 95000, description: "Đậm chất miền Tây Nam Bộ" },
+            { name: "Pizza Hải Sản", price: 150000, description: "Đế mỏng, phô mai ngập tràn, tôm mực tươi" },
+            { name: "Sushi Cá Hồi", price: 120000, description: "Cá hồi tươi rói, mù tạt cay nồng" },
+            { name: "Dimsum Tổng Hợp", price: 90000, description: "Há cảo tôm xíu mại, bánh bao kim sa" },
+            { name: "Bít tết bò Úc", price: 250000, description: "Bò nhập khẩu nướng mềm mọng nước" },
+            { name: "Mì cay 7 cấp độ", price: 65000, description: "Cay xé lưỡi, chả cá tôm cua" },
+            { name: "Chay đậu hũ tứ xuyên", price: 50000, description: "Thuần chay, cay nồng gia vị Tứ Xuyên" },
+            { name: "Pad Thái", price: 80000, description: "Sợi hủ tiếu xào tôm kiểu Thái Lan" },
+            { name: "Gà rán Hàn Quốc xốt cay", price: 120000, description: "Gà giòn tan, xốt cay ngọt sánh mịn" },
+            { name: "Mì Ý Carbonara", price: 110000, description: "Béo ngậy sốt kem phô mai và thịt xông khói" },
+            { name: "Cơm trộn Bibimbap", price: 95000, description: "Niêu đá nóng hổi với rau củ và thịt bò" }
         ],
         cafe: [
             // --- CÀ PHÊ (20 món) ---
@@ -111,7 +121,12 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
             { name: "Mousse chanh dây", price: 55000, description: "Vị chua ngọt mát" },
             { name: "Bánh mì bơ tỏi", price: 40000, description: "Thơm lừng tỏi phi" },
             { name: "Bánh Flan", price: 20000, description: "Mịn màng nước cốt dừa" },
-            { name: "Macaron", price: 25000, description: "Bánh ngọt kiểu Pháp" }
+            { name: "Macaron", price: 25000, description: "Bánh ngọt kiểu Pháp" },
+            { name: "Bingsu Dưa Lưới", price: 95000, description: "Trái cây tươi mát lạnh đá bào Hàn Quốc" },
+            { name: "Trà Kombucha Dâu", price: 55000, description: "Lên men tự nhiên tốt cho hệ tiêu hóa" },
+            { name: "Sữa chua dẻo hạt ươi", price: 40000, description: "Sức khỏe vóc dáng thanh lọc" },
+            { name: "Waffle mix kem vani", price: 70000, description: "Bánh tàn ong giòn xốp nóng hổi" },
+            { name: "Cold Brew vải thiều", price: 65000, description: "Vị cà phê nhẹ đan xen vải ngọt lịm" }
         ],
         pub: [
             // --- BIA & RƯỢU (25 món) ---
@@ -165,7 +180,11 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
             { name: "Nem chua rán", price: 50000, description: "Món nhắm đường phố" },
             { name: "Khoai lang kén", price: 45000, description: "Ngọt bùi dễ ăn" },
             { name: "Hạt điều rang muối", price: 65000, description: "Giàu dinh dưỡng" },
-            { name: "Thịt trâu gác bếp", price: 280000, description: "Đặc sản Tây Bắc" }
+            { name: "Thịt trâu gác bếp", price: 280000, description: "Đặc sản Tây Bắc" },
+            { name: "Bia đen thủ công hoàng gia", price: 120000, description: "Bia ủ lâu năm vị caramel đặc trưng" },
+            { name: "Cocktail Zombie", price: 180000, description: "Nhiều loại rượu mạnh pha trộn đánh gục bạn" },
+            { name: "Bắp bò ngâm mắm chua ngọt", price: 145000, description: "Giòn sần sật cắn cực đã" },
+            { name: "Đuôi cá sấu nướng muối ớt", price: 250000, description: "Đặc sản siêu hiếm lạ miệng" }
         ]
     };
 

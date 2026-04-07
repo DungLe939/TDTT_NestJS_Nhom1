@@ -66,7 +66,10 @@ export class SchedulerService {
 
         await batch.commit();
 
-        return fullData;
+        return {
+            data: fullData,
+            coords: coords
+        };
     }
 
     async createTravelPlan(body: any, guest_id: string) {
@@ -75,7 +78,7 @@ export class SchedulerService {
         // Phân bổ ngân sách theo từng buổi
         const dailyBudget = budget / travelDays;
         const mealBudgetConfig = {
-            morning: dailyBudget * 0.2, // 20% cho bữa sáng
+            breakfast: dailyBudget * 0.2, // 20% cho bữa sáng
             lunch: dailyBudget * 0.3,   // 30% cho bữa trưa
             dinner: dailyBudget * 0.5    // 50% cho bữa tối
         };
@@ -85,7 +88,7 @@ export class SchedulerService {
         if (mealBudgetConfig.dinner > 200000) globalMaxPriceRange = 3;
 
         // Lọc thô (Raw Filter)
-        const rawRestaurants = await this.rawFilterHelper.rawData(currentLocation, globalMaxPriceRange, guest_id);
+        const rawRestaurants = await this.rawFilterHelper.rawData(currentLocation, globalMaxPriceRange, guest_id, travelDays);
 
         if (!rawRestaurants || rawRestaurants.length === 0) {
             return {

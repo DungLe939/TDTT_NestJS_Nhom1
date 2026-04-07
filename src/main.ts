@@ -6,6 +6,11 @@ import cookieParser from 'cookie-parser';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
+
   app.use(cookieParser());
 
   // Kích hoạt tính năng kiểm tra dữ liệu cho toàn bộ các DTO

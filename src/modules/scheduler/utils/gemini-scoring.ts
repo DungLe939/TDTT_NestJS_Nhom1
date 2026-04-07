@@ -26,7 +26,7 @@ export class GeminiScoringHelper {
             - Khẩu vị: ${preferences.states?.join(", ")}
 
             NGÂN SÁCH MỤC TIÊU (VND):
-            - Sáng: ${mealBudgets.morning}, Trưa: ${mealBudgets.lunch}, Tối: ${mealBudgets.dinner}
+            - Sáng: ${mealBudgets.breakfast}, Trưa: ${mealBudgets.lunch}, Tối: ${mealBudgets.dinner}
 
             DANH SÁCH NHÀ HÀNG (JSON):
             ${JSON.stringify(restaurants)}
@@ -36,15 +36,14 @@ export class GeminiScoringHelper {
             2. Phù hợp sở thích/khẩu vị: +30đ.
             3. Phù hợp ngân sách: +30đ (Giá món chính gần bằng ngân sách mục tiêu).
             4. Món trùng lặp danh mục đã ăn: không cộng điểm.
-            5. LOẠI BỎ (Điểm = -999) nếu: Chứa thành phần dị ứng, món khách không thích, hoặc NGOÀI GIỜ HOẠT ĐỘNG (Sáng: 7-9h, Trưa: 11-13h, Tối: 17-21h).
+            5. LOẠI BỎ (Điểm = -999) nếu: Chứa thành phần dị ứng, món khách không thích, hoặc NGOÀI GIỜ HOẠT ĐỘNG.
 
             YÊU CẦU TRẢ VỀ JSON NGHIÊM NGẶT (Mảng các đối tượng):
             lưu ý : 
                 - id lấy từ Database phải chính xác nhé
                 - Thêm trường "category" cho mỗi món ăn. 
-                    Ví dụ "bún bò", "bún chả", "bún đậu mắm tôm",.. thì đều gắn category là "bún"
-                    "phở bò", "phở bò tái nạm", "phở bò chín",.. thì đều gắn category là "phở",....
-                    Việc bạn thêm trường này sẽ giúp tôi phân loại món ăn chính xác hơn
+                    Ví dụ "bún bò", "bún chả" thì category là "bún". "phở bò", "phở gà" thì category là "phở".
+                - BẮT BUỘC CHÉP LẠI ĐẦY ĐỦ 100% CÁC MÓN TRONG THẺ MENU CỦA MỖI QUÁN. KHÔNG ĐƯỢC LƯỢC BỎ BẤT KỲ MÓN NÀO.
             [{
                 "id": "...",
                 "restaurantName": "...",

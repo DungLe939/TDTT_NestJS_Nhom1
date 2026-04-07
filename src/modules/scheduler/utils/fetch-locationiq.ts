@@ -22,14 +22,18 @@ export const fetchNearbyRestaurants = async (lat: number, lon: number, radius = 
     const baseLat = lat || 21.0285;
     const baseLon = lon || 105.8542;
 
-    //mở rộng phạm vi tìm kiếm
-    const offset = 0.025;
+    // Mở rộng mô hình lưới 3x3 (9 điểm quét) cho diện rộng hơn
+    const offset = 0.04;
     const scanPoints = [
-        { lat: baseLat, lon: baseLon },
-        { lat: baseLat + offset, lon: baseLon },
-        { lat: baseLat - offset, lon: baseLon },
-        { lat: baseLat, lon: baseLon + offset },
-        { lat: baseLat, lon: baseLon - offset }
+        { lat: baseLat, lon: baseLon }, // Center
+        { lat: baseLat + offset, lon: baseLon }, // N
+        { lat: baseLat - offset, lon: baseLon }, // S
+        { lat: baseLat, lon: baseLon + offset }, // E
+        { lat: baseLat, lon: baseLon - offset }, // W
+        { lat: baseLat + offset, lon: baseLon + offset }, // NE
+        { lat: baseLat + offset, lon: baseLon - offset }, // NW
+        { lat: baseLat - offset, lon: baseLon + offset }, // SE
+        { lat: baseLat - offset, lon: baseLon - offset }  // SW
     ];
 
     const tags = ['restaurant', 'cafe', 'pub'];

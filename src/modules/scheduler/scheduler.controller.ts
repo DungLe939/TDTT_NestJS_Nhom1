@@ -22,8 +22,8 @@ export class SchedulerController {
       return {
         success: true,
         message: `Đã cập nhật quán tại: ${searchDto.keyword}`,
-        total: result.length,
-        data: result,
+        data: result.data,
+        coords: result.coords
       };
     } catch (error) {
       throw new InternalServerErrorException(error.message);

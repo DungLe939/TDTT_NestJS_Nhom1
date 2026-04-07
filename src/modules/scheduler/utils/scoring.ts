@@ -57,11 +57,36 @@ export class ScoringHelper {
 
             const dayPlan = orderedPlan[i];
 
-            const scoredRestaurants = await this.geminiScoring.scoreRestaurantsWithAI(
-                dayPlan.cluster.restaurants,
-                preferences,
-                mealBudgetConfig
-            );
+            let scoredRestaurants: any[] = [];
+            try {
+                scoredRestaurants = await this.geminiScoring.scoreRestaurantsWithAI(
+                    dayPlan.cluster.restaurants,
+                    preferences,
+                    mealBudgetConfig
+                );
+            } catch (e) {
+                console.error("Lỗi khi chấm điểm với Gemini:", e);
+            }
+
+            // DỰ PHÒNG CHẶT CHẼ: Rớt mạng hoặc Gemini Rate Limit (trả về rỗng)
+            if (!scoredRestaurants || scoredRestaurants.length === 0) {
+                console.warn(`[Cảnh báo] Gemini trả về rỗng cho ngày ${dayPlan.day}, kích hoạt Local Scoring!`);
+                scoredRestaurants = dayPlan.cluster.restaurants.map((res: any) => ({
+                    id: res.id,
+                    restaurantName: res.name,
+                    menu: res.menu.map((m: any) => ({
+                        name: m.name,
+                        price: m.price,
+                        category: (m.name.split(" ")[0] || "khác").toLowerCase(), // "Phở bò" -> "phở"
+                        score: Math.floor(Math.random() * 50) + 50
+                    })),
+                    scores: {
+                        breakfast: Math.floor(Math.random() * 50) + 50,
+                        lunch: Math.floor(Math.random() * 50) + 50,
+                        dinner: Math.floor(Math.random() * 50) + 50
+                    }
+                }));
+            }
 
             const meals = ['breakfast', 'lunch', 'dinner'];
             const dayMealsResult: any = {};
@@ -111,10 +136,10 @@ export class ScoringHelper {
                             d.name !== dayMealsResult['lunch']?.dish;
                     },
 
-                    // Level 5: "Cứu vãn" (Chỉ cần không trùng chính xác tên món với bữa liền trước trong ngày)
+                    // Level 5: "Cứu vãn" (Chỉ cần không trùng chính xác tên món với BẤT KỲ bữa nào trước đó trong ngày)
                     (d: any, res: any) => {
-                        return d.name !== dayMealsResult['breakfast']?.dish &&
-                            d.name !== dayMealsResult['lunch']?.dish;
+                        const previousDishes = Object.values(dayMealsResult).map((m: any) => m.dish);
+                        return !previousDishes.includes(d.name);
                     }
                 ];
 
@@ -147,13 +172,9 @@ export class ScoringHelper {
                     const randomFallbackRestaurant = top20Restaurants[Math.floor(Math.random() * top20Restaurants.length)];
 
                     if (randomFallbackRestaurant && randomFallbackRestaurant.menu?.length > 0) {
-                        // Xác định tên món của bữa liền kề trước đó để tránh trùng lặp
-                        let previousDishName = null;
-                        if (meal === 'lunch') previousDishName = dayMealsResult['breakfast']?.dish;
-                        if (meal === 'dinner') previousDishName = dayMealsResult['lunch']?.dish;
-
-                        // Lọc ra các món KHÔNG trùng với bữa trước
-                        let validDishes = randomFallbackRestaurant.menu.filter((d: any) => d.name !== previousDishName);
+                        // Lọc ra các món KHÔNG trùng với TẤT CẢ các bữa trước trong ngày
+                        const previousDishes = Object.values(dayMealsResult).map((m: any) => m.dish);
+                        let validDishes = randomFallbackRestaurant.menu.filter((d: any) => !previousDishes.includes(d.name));
 
                         // Nếu lọc xong mà hết món (ví dụ quán chỉ bán 1 món và vừa ăn xong), thì đành lấy lại toàn bộ menu
                         if (validDishes.length === 0) {
@@ -186,7 +207,7 @@ export class ScoringHelper {
                         dish: selectedDish.name,
                         price: selectedDish.price,
                         category: selectedDish.category,
-                        reason: `Được hệ thống chọn dựa trên điểm số (${selectedRestaurant.scores[meal] || 0}đ) và chiến lược đa dạng hóa món ăn.`
+                        reason: selectedDish.fallbackReason || `Được hệ thống chọn dựa trên điểm số (${selectedRestaurant.scores[meal] || 0}đ) và chiến lược đa dạng hóa món ăn.`
                     };
                 }
             }

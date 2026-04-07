@@ -39,13 +39,55 @@ export class ClusteringHelper {
             };
         });
 
-        // Kiểm tra số lượng quán tối thiểu mỗi ngày
-        const MIN_RESTAURANTS_PER_DAY = 6;
-        clusters.forEach(cluster => {
-            if (cluster.restaurants.length < MIN_RESTAURANTS_PER_DAY) {
-                console.warn(`Cụm ${cluster.clusterId} hơi ít quán (${cluster.restaurants.length})`);
+        // --- BẮT ĐẦU THUẬT TOÁN CÂN BẰNG TỰ ĐỘNG ---
+        const totalItems = rawRestaurants.length;
+        const averagePerCluster = Math.max(1, Math.floor(totalItems / travelDays));
+        // Lấy ngưỡng tự động (tối thiểu là 6, hoặc 40% của giá trị trung bình)
+        const minThreshold = Math.max(6, Math.floor(averagePerCluster * 0.4));
+        
+        console.log(`[Balancing] Total: ${totalItems}, Avg: ${averagePerCluster}, Threshold: ${minThreshold}`);
+
+        let keepBalancing = true;
+        let attempts = 0;
+        
+        while (keepBalancing && attempts < 100) { 
+            attempts++;
+            
+            // Tìm cụm nghèo nhất và cụm giàu nhất
+            const sortedClusters = [...clusters].sort((a, b) => a.restaurants.length - b.restaurants.length);
+            const poorest = sortedClusters[0];
+            const richest = sortedClusters[sortedClusters.length - 1];
+
+            // Nếu cụm nghèo nhất đã đạt tiêu chuẩn, hoặc chênh lệch giữa giàu và nghèo quá ít (<= 1) thì dừng cân bằng
+            if (poorest.restaurants.length >= minThreshold || (richest.restaurants.length - poorest.restaurants.length <= 1)) {
+                keepBalancing = false;
+                break;
             }
+
+            // Mượn 1 quán từ cụm richest
+            let closestDist = Infinity;
+            let bestIndexToSteal = -1;
+
+            richest.restaurants.forEach((r, idx) => {
+                const dist = this.getDistance(r.location.coordinates, poorest.centroid);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    bestIndexToSteal = idx;
+                }
+            });
+
+            if (bestIndexToSteal !== -1) {
+                const stolenRestaurant = richest.restaurants.splice(bestIndexToSteal, 1)[0];
+                poorest.restaurants.push(stolenRestaurant);
+            } else {
+                keepBalancing = false; 
+            }
+        }
+        
+        clusters.forEach(cluster => {
+            console.log(`Cụm ${cluster.clusterId} sau cân bằng có ${cluster.restaurants.length} quán`);
         });
+        // --- KẾT THÚC CÂN BẰNG ---
 
         // Sắp xếp thứ tự ngày dựa trên khoảng cách (Greedy Approach)
         const orderedPlan: any[] = [];

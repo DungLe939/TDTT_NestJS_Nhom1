@@ -9,7 +9,8 @@ export class RawFilterHelper {
     async rawData(
         currentLocation: LocationDto,
         globalMaxPriceRange: number,
-        guest_id: string
+        guest_id: string,
+        travelDays: number = 3
     ): Promise<any[]> {
         // Truy vấn cơ bản từ Firestore
         const snapshot = await db.collection('restaurants')
@@ -17,11 +18,16 @@ export class RawFilterHelper {
             .where('priceRange', '<=', globalMaxPriceRange)
             .get();
 
-        console.log("snapshot: ", snapshot);
+        console.log("snapshot: ", snapshot.docs.length);
 
         if (snapshot.empty) {
             return [];
         }
+
+        // Bán kính động: 10km cơ sở + 2.5km mỗi ngày du lịch
+        const maxRadius = 10000 + (travelDays * 2500);
+        // Giới hạn số lượng cũng dựa theo số ngày (mỗi ngày lấy khoảng 40 quán dự phòng)
+        const limitCount = Math.max(100, travelDays * 40);
 
         // Lọc thủ công (Match & GeoFilter) 
         const rawRestaurants = snapshot.docs
@@ -39,12 +45,11 @@ export class RawFilterHelper {
                 );
 
                 restaurant.distance = dist;
-                return isGoodRating && dist <= 15000; // Bán kính 10km
+                return isGoodRating && dist <= maxRadius;
             })
             // Sắp xếp theo khoảng cách gần nhất
             .sort((a, b) => a.distance - b.distance)
-            // Giới hạn 100 kết quả
-            .slice(0, 100);
+            .slice(0, limitCount);
 
         return rawRestaurants;
     }
