@@ -68,7 +68,7 @@ export class ScoringHelper {
                 console.error("Lỗi khi chấm điểm với Gemini:", e);
             }
 
-            // DỰ PHÒNG CHẶT CHẼ: Rớt mạng hoặc Gemini Rate Limit (trả về rỗng)
+                    // DỰ PHÒNG CHẶT CHẼ: Rớt mạng hoặc Gemini Rate Limit (trả về rỗng)
             if (!scoredRestaurants || scoredRestaurants.length === 0) {
                 console.warn(`[Cảnh báo] Gemini trả về rỗng cho ngày ${dayPlan.day}, kích hoạt Local Scoring!`);
                 scoredRestaurants = dayPlan.cluster.restaurants.map((res: any) => ({
@@ -77,13 +77,13 @@ export class ScoringHelper {
                     menu: res.menu.map((m: any) => ({
                         name: m.name,
                         price: m.price,
-                        category: (m.name.split(" ")[0] || "khác").toLowerCase(), // "Phở bò" -> "phở"
+                        category: (m.name.split(" ")[0] || "khác").toLowerCase(), 
                         score: Math.floor(Math.random() * 50) + 50
                     })),
                     scores: {
-                        breakfast: Math.floor(Math.random() * 50) + 50,
-                        lunch: Math.floor(Math.random() * 50) + 50,
-                        dinner: Math.floor(Math.random() * 50) + 50
+                        breakfast: { score: Math.floor(Math.random() * 50) + 50, suggestedTime: "08:00" },
+                        lunch: { score: Math.floor(Math.random() * 50) + 50, suggestedTime: "12:30" },
+                        dinner: { score: Math.floor(Math.random() * 50) + 50, suggestedTime: "19:00" }
                     }
                 }));
             }
@@ -95,9 +95,11 @@ export class ScoringHelper {
                 const targetBudget = mealBudgetConfig[meal];
 
                 // Sắp xếp quán theo điểm của buổi đó
-                const sortedRestaurants = [...scoredRestaurants].sort((a, b) =>
-                    (b.scores?.[meal] ?? 0) - (a.scores?.[meal] ?? 0)
-                );
+                const sortedRestaurants = [...scoredRestaurants].sort((a, b) => {
+                    const scoreA = typeof a.scores?.[meal] === 'object' ? a.scores[meal].score : (a.scores?.[meal] ?? 0);
+                    const scoreB = typeof b.scores?.[meal] === 'object' ? b.scores[meal].score : (b.scores?.[meal] ?? 0);
+                    return scoreB - scoreA;
+                });
 
                 let selectedDish: any = null;
                 let selectedRestaurant: any = null;
@@ -150,7 +152,8 @@ export class ScoringHelper {
 
                     for (const restaurant of sortedRestaurants) {
                         // Bỏ qua quán bị đánh giá âm, TRỪ KHI đang ở Level 5 (phải lấy bằng được món)
-                        if (!isFinalLevel && (restaurant.scores?.[meal] ?? -999) < 0) continue;
+                        const currentScore = typeof restaurant.scores?.[meal] === 'object' ? restaurant.scores[meal].score : (restaurant.scores?.[meal] ?? -999);
+                        if (!isFinalLevel && currentScore < 0) continue;
 
                         const dish = restaurant.menu?.find((d: any) => checkStrategy(d, restaurant));
 
@@ -163,7 +166,7 @@ export class ScoringHelper {
                     if (selectedDish) break; // Đã tìm thấy ở level này thì thoát vòng lặp strategy
                 }
 
-                // CHIẾN LƯỢC TỐI THƯỢNG: Tránh rỗng dữ liệu bằng mọi giá
+                // CHIẾN LƯỢT TỐI THƯỢNG: Tránh rỗng dữ liệu bằng mọi giá
                 if (!selectedDish && sortedRestaurants.length > 0) {
                     // 1. Lấy tối đa top 20 quán có điểm cao nhất của buổi này
                     const top20Restaurants = sortedRestaurants.slice(0, 20);
@@ -201,13 +204,23 @@ export class ScoringHelper {
                         usedCategoriesInDay.add(normalizedCat);  // Khóa Local
                     }
 
+                    // Lấy thời gian từ AI hoặc gán mặc định dựa trên buổi
+                    let suggestedTime = "08:00";
+                    if (typeof selectedRestaurant.scores?.[meal] === 'object' && selectedRestaurant.scores[meal].suggestedTime) {
+                        suggestedTime = selectedRestaurant.scores[meal].suggestedTime;
+                    } else {
+                        if (meal === 'lunch') suggestedTime = "12:30";
+                        if (meal === 'dinner') suggestedTime = "19:00";
+                    }
+
                     dayMealsResult[meal] = {
                         id: selectedRestaurant.id,
                         name: selectedRestaurant.name,
                         dish: selectedDish.name,
                         price: selectedDish.price,
                         category: selectedDish.category,
-                        reason: selectedDish.fallbackReason || `Được hệ thống chọn dựa trên điểm số (${selectedRestaurant.scores[meal] || 0}đ) và chiến lược đa dạng hóa món ăn.`
+                        time: suggestedTime,
+                        reason: selectedDish.fallbackReason || `Được hệ thống chọn dựa trên chiến lược đa dạng hóa món ăn.`
                     };
                 }
             }

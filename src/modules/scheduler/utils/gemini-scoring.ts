@@ -56,11 +56,13 @@ export class GeminiScoringHelper {
                 }
                 ],
                 "scores": {
-                "breakfast": number,
-                "lunch": number,
-                "dinner": number
+                "breakfast": { "score": number, "suggestedTime": "HH:mm" },
+                "lunch": { "score": number, "suggestedTime": "HH:mm" },
+                "dinner": { "score": number, "suggestedTime": "HH:mm" }
                 }
             }]
+            lưu ý thêm:
+                - suggestedTime: hãy gợi ý thời gian ăn phù hợp cho từng buổi (ví dụ Sáng: 07:00-09:00, Trưa: 11:30-13:00, Tối: 18:00-20:00).
             `;
 
         try {

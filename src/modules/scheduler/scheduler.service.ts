@@ -124,6 +124,7 @@ export class SchedulerService {
                         price: aiChoice.price,
                         reason: aiChoice.reason,
                         category: aiChoice.category,
+                        time: aiChoice.time,
 
                         // Thông tin gốc từ RestaurantDto (Dữ liệu cố định)
                         id: originalData.id,
