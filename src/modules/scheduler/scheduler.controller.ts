@@ -2,6 +2,7 @@ import { Controller, Post, Body, InternalServerErrorException, HttpStatus, Res, 
 import type { Request } from 'express';
 import { SchedulerService } from './scheduler.service';
 import { SearchLocationDto } from './dto/search-location.dto';
+import { RouteRequestDto } from './dto/route-request.dto';
 
 @Controller('schedule')
 export class SchedulerController {
@@ -41,5 +42,28 @@ export class SchedulerController {
       success: true,
       ...result
     };
+  }
+
+  @Post('route')
+  async getRoute(@Body() routeDto: RouteRequestDto) {
+    try {
+      const result = await this.schedulerService.getShortestPath(
+        routeDto.userLat,
+        routeDto.userLng,
+        routeDto.destLat,
+        routeDto.destLng
+      );
+
+      if (!result) {
+        return { success: false, message: 'Không thể tìm thấy lộ trình!' };
+      }
+
+      return {
+        success: true,
+        ...result
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
   }
 }

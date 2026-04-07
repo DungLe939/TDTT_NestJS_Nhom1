@@ -160,4 +160,25 @@ export class SchedulerService {
             plan: detailedPlan,
         };
     }
+
+    async getShortestPath(userLat: number, userLng: number, destLat: number, destLng: number) {
+        try {
+            // OSRM API: lng,lat;lng,lat
+            const url = `http://router.project-osrm.org/route/v1/driving/${userLng},${userLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+            const response = await axios.get(url);
+
+            if (response.data && response.data.routes && response.data.routes.length > 0) {
+                const route = response.data.routes[0];
+                return {
+                    distance: route.distance, // mét
+                    duration: route.duration, // giây
+                    geometry: route.geometry, // GeoJSON LineString
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error("Lỗi OSRM Routing:", error);
+            return null;
+        }
+    }
 }
