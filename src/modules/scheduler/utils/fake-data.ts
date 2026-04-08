@@ -1,10 +1,19 @@
 import { MenuItemDto } from "../../restaurants/dto/menu-item.dto";
 import { RestaurantDto } from "../../restaurants/dto/restaurant.dto";
 
+/**
+ * fakeRemainingData: Hàm bổ sung dữ liệu giả lập cho các nhà hàng.
+ * Khi lấy dữ liệu từ API bên ngoài, chúng ta thường chỉ có thông tin cơ bản (tên, tọa độ, địa chỉ).
+ * Hàm này giúp làm đầy thông tin như: Thực đơn (Menu), Đánh giá (Rating), Giờ mở cửa,...
+ * 
+ * @param rawRestaurants Danh sách nhà hàng 
+ * @param guestId ID của khách hàng để gán vào dữ liệu (dùng cho cache/session) - lấy trong middleware
+ */
 export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
     const pools: Record<string, MenuItemDto[]> = {
+        // Danh sách món ăn cho nhà hàng bình
         restaurant: [
-            // --- CƠM, MÌ, PHỞ (ĂN NO) ---
+            // --- CƠM, MÌ, PHỞ ---
             { name: "Cơm tấm sườn bì chả", price: 55000, description: "Sườn nướng than hồng, vị đậm đà truyền thống" },
             { name: "Cơm chiên dương châu", price: 65000, description: "Cơm tơi, nhiều lạp xưởng và đậu Hà Lan" },
             { name: "Cơm gà Hải Nam", price: 75000, description: "Gà luộc da giòn, cơm nấu nước dùng gà" },
@@ -82,6 +91,7 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
             { name: "Xôi chiên phồng", price: 20000, description: "Vàng giòn, nhân thịt băm mộc nhĩ" },
             { name: "Bánh tráng trộn", price: 30000, description: "Full topping bò khô, trứng cút, xoài" }
         ],
+        // Danh sách đồ uống và bánh cho quán Cà phê (Cafe)
         cafe: [
             // --- CÀ PHÊ (20 món) ---
             { name: "Cà phê sữa đá", price: 25000, description: "Robusta đậm đà" },
@@ -142,6 +152,7 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
             { name: "Waffle mix kem vani", price: 70000, description: "Bánh tàn ong giòn xốp nóng hổi" },
             { name: "Cold Brew vải thiều", price: 65000, description: "Vị cà phê nhẹ đan xen vải ngọt lịm" }
         ],
+        // Danh sách mồi nhắm và đồ uống có cồn cho quán nhậu/bar (Pub)
         pub: [
             // --- BIA & RƯỢU (25 món) ---
             { name: "Bia Tiger bạc", price: 35000, description: "Dễ uống, sảng khoái" },
@@ -203,6 +214,7 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
     };
 
     return rawRestaurants.map(res => {
+        //phần random menu cho quán ăn
         const cuisineLower = (res.cuisine || 'restaurant').toLowerCase();
         const category = pools[cuisineLower] ? cuisineLower : 'restaurant';
         const currentPool = pools[category];

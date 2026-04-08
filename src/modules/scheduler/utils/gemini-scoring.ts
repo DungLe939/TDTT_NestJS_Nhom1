@@ -3,79 +3,78 @@ import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { RestaurantDto } from "../../restaurants/dto/restaurant.dto";
 
+/**
+ * GeminiScoringHelper: Hỗ trợ chấm điểm các nhà hàng bằng AI dựa trên hồ sơ người dùng.
+ * AI sẽ phân tích menu và thông tin nhà hàng để đưa ra điểm số cho từng bữa ăn (Sáng, Trưa, Tối).
+ */
 @Injectable()
 export class GeminiScoringHelper {
     private genAI: GoogleGenerativeAI;
     private model: any;
 
     constructor() {
+        // Khởi tạo Gemini với API Key
         const apiKey = process.env.GEMINI_API_KEY!;
         this.genAI = new GoogleGenerativeAI(apiKey);
-        this.model = this.genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+        
+        // Sử dụng mô hình flash để đạt tốc độ xử lý nhanh nhất
+        this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     }
 
+    /**
+     * scoreRestaurantsWithAI: Gửi danh sách nhà hàng và sở thích người dùng cho AI để chấm điểm.
+     * 
+     * @param restaurants Danh sách nhà hàng cần chấm điểm
+     * @param preferences Sở thích/Dị ứng của người dùng
+     * @param mealBudgets Ngân sách cho từng bữa ăn
+     */
     async scoreRestaurantsWithAI(restaurants: RestaurantDto[], preferences: any, mealBudgets: any) {
+        // Xây dựng Prompt với đầy đủ các quy tắc nghiệp vụ
         const prompt = `
-            Bạn là một AI chuyên gia phân tích ẩm thực và du lịch tại Việt Nam.
-            NHIỆM VỤ: Chấm điểm danh sách nhà hàng dựa trên hồ sơ khách hàng.
+            Bạn là một chuyên gia AI về ẩm thực và du lịch tại Việt Nam.
+            NHIỆM VỤ: Phân tích menu và chấm điểm nhà hàng dựa trên hồ sơ khách hàng sau:
 
             HỒ SƠ KHÁCH HÀNG:
             - Sở thích: ${preferences.favoriteFoods?.join(", ")}
             - Không thích: ${preferences.dislikedFoods?.join(", ")}
-            - Dị ứng (LOẠI BỎ NGAY): ${preferences.allergies?.join(", ")}
+            - Dị ứng (LOẠI BỎ NGAY - ĐIỂM = -999): ${preferences.allergies?.join(", ")}
             - Khẩu vị: ${preferences.states?.join(", ")}
 
-            NGÂN SÁCH MỤC TIÊU (VND):
-            - Sáng: ${mealBudgets.breakfast}, Trưa: ${mealBudgets.lunch}, Tối: ${mealBudgets.dinner}
+            NGÂN SÁCH MỤC TIÊU:
+            - Sáng: ${mealBudgets.breakfast}đ, Trưa: ${mealBudgets.lunch}đ, Tối: ${mealBudgets.dinner}đ
 
-            DANH SÁCH NHÀ HÀNG (JSON):
-            ${JSON.stringify(restaurants)}
+            QUY TẮC CHẤM ĐIỂM:
+            1. Phù hợp buổi (Sáng/Trưa/Tối): +50đ (Dựa vào món ăn trong menu).
+            2. Phù hợp sở thích: +30đ.
+            3. Phù hợp ngân sách: +30đ.
+            4. Phân loại "isSnack": true cho đồ uống/ăn nhẹ, false cho món ăn chính.
+            5. Ghi chú ID từ dữ liệu gốc phải giữ nguyên hoàn toàn.
 
-            QUY TẮC CHẤM ĐIỂM (TỔNG ĐIỂM CÓ THỂ > 100):
-            1. Phù hợp buổi (Sáng/Trưa/Tối): +50đ (Dựa vào Menu và tên quán).
-            2. Phù hợp sở thích/khẩu vị: +30đ.
-            3. Phù hợp ngân sách: +30đ (Giá món chính gần bằng ngân sách mục tiêu).
-            4. Món trùng lặp danh mục đã ăn: không cộng điểm.
-            5. LOẠI BỎ (Điểm = -999) nếu: Chứa thành phần dị ứng, món khách không thích, hoặc NGOÀI GIỜ HOẠT ĐỘNG.
-
-            YÊU CẦU TRẢ VỀ JSON NGHIÊM NGẶT (Mảng các đối tượng):
-            lưu ý : 
-                - id lấy từ Database phải chính xác nhé
-                - Thêm trường "category" cho mỗi món ăn. 
-                    Ví dụ "bún bò", "bún chả" thì category là "bún". "phở bò", "phở gà" thì category là "phở".
-                - Thêm trường "isSnack" (boolean) cho mỗi món ăn:
-                    + isSnack: true nếu là món ăn nhẹ, đồ uống, tráng miệng (ví dụ: cà phê, trà sữa, chè, kem, bánh tráng, trà đào, ốc, nem chua rán, v.v.).
-                    + isSnack: false nếu là món ăn chính (ví dụ: bún, phở, cơm, mì, bánh mì kẹp thịt, lẩu, v.v.).
-                - BẮT BUỘC CHÉP LẠI ĐẦY ĐỦ 100% CÁC MÓN TRONG THẺ MENU CỦA MỖI QUÁN. KHÔNG ĐƯỢC LƯỢC BỎ BẤT KỲ MÓN NÀO.
+            TRẢ VỀ JSON (Dạng mảng):
             [{
                 "id": "...",
                 "restaurantName": "...",
-                "menu": [
-                {
-                    "name": "...",
-                    "price": number,
-                    "score": number,
-                    "category": "...",
-                    "isSnack": boolean
-                }
-                ],
+                "menu": [{ "name": "...", "price": number, "score": number, "category": "...", "isSnack": boolean }],
                 "scores": {
-                "breakfast": { "score": number, "suggestedTime": "HH:mm" },
-                "lunch": { "score": number, "suggestedTime": "HH:mm" },
-                "dinner": { "score": number, "suggestedTime": "HH:mm" }
+                    "breakfast": { "score": number, "suggestedTime": "HH:mm" },
+                    "lunch": { "score": number, "suggestedTime": "HH:mm" },
+                    "dinner": { "score": number, "suggestedTime": "HH:mm" }
                 }
             }]
-            lưu ý thêm:
-                - suggestedTime: hãy gợi ý thời gian ăn phù hợp cho từng buổi (ví dụ Sáng: 07:00-09:00, Trưa: 11:30-13:00, Tối: 18:00-20:00).
-            `;
+
+            DANH SÁCH NHÀ HÀNG:
+            ${JSON.stringify(restaurants)}
+        `;
 
         try {
             const result = await this.model.generateContent(prompt);
             const responseText = result.response.text().replace(/```json|```/g, "").trim();
+            
+            // Trả về kết quả sau khi AI đã phân tích và chấm điểm
             return JSON.parse(responseText);
         } catch (error) {
-            console.error("Gemini Scoring Error:", error);
+            console.error("Lỗi khi chấm điểm với Gemini:", error);
             return [];
         }
     }
-}
+}

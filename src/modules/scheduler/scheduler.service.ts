@@ -18,6 +18,7 @@ export class SchedulerService {
     // Hàm lấy tọa độ từ Keyword 
     private async getCoordsFromKeyword(keyword: string) {
         try {
+            //Gọi api tới openstreetmap
             const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(keyword)}&format=json&limit=1`;
             const response = await axios.get(url, {
                 headers: { 'User-Agent': 'Smart-Tourism-App-HCMUS' } // Nominatim yêu cầu User-Agent
@@ -37,6 +38,8 @@ export class SchedulerService {
         }
     }
 
+    //Hàm quét dữ liệu các quán ăn và lưu vào database
+    // được gọi từ endpoint: /schedule/searchLocation
     async processSearchLocation(keyword: string, guestId: string) {
         // lấy tọa độ từ keyword
         const coords = await this.getCoordsFromKeyword(keyword);
@@ -44,7 +47,7 @@ export class SchedulerService {
 
         const { lat, lng } = coords;
 
-        // Xóa dữ liệu cũ của guest này trong Firestore
+        // Xóa dữ liệu cũ của guest này trong Firestore => tránh phình to DB
         const batch = db.batch();
         const oldDocs = await db.collection('restaurants')
             .where('guest_id', '==', guestId)
@@ -72,8 +75,15 @@ export class SchedulerService {
         };
     }
 
+    //Hàm tạo lịch trình các quán ăn phù hợp
+    // Được gọi từ endpoint: /schedule/generatePlan
     async createTravelPlan(body: any, guest_id: string) {
-        const { budget, currentLocation, preferences, travelDays } = body;
+        const { 
+          budget, //tổng ngân sách
+          currentLocation,  // tọa độ địa điểm du lịch 
+          preferences,  // sở thích/dị ứng
+          travelDays  //số ngày đi du lịch dự kiến
+        } = body;
 
         // Phân bổ ngân sách theo từng buổi
         const dailyBudget = budget / travelDays;
@@ -83,7 +93,7 @@ export class SchedulerService {
             dinner: dailyBudget * 0.5    // 50% cho bữa tối
         };
 
-        // Xác định maxPriceRange (Range 2 hoặc 3 dựa trên ngân sách bữa tối)
+        // Xác định maxPriceRange (dựa trên ngân sách bữa tối vì bữa tối chiếm 50% ngân sách của ngày)
         let globalMaxPriceRange = 2;
         if (mealBudgetConfig.dinner > 200000) globalMaxPriceRange = 3;
 
@@ -101,7 +111,7 @@ export class SchedulerService {
         // Chia cụm (Clustering)
         const orderedPlan = this.clusteringHelper.clusteringStep(rawRestaurants, travelDays, currentLocation);
 
-        // 4. Lập lịch trình tổng thể (Gemini chi tiết)
+        // Lập lịch trình tổng thể 
         const { plan: finalPlanRaw, snackCandidates } = await this.scoringHelper.generateFinalPlan(orderedPlan, mealBudgetConfig, preferences);
 
         // Bơm đầy đủ dữ liệu theo RestaurantDto để gửi về Frontend
@@ -160,11 +170,13 @@ export class SchedulerService {
                 suggestedMealBudget: mealBudgetConfig
             },
             count: rawRestaurants.length,
-            plan: detailedPlan,
-            snackCandidates: snackCandidates
+            plan: detailedPlan, //lộ trình
+            snackCandidates: snackCandidates  //danh sách các quán ăn có món ăn vặt tiềm năng
         };
     }
 
+    //Hàm tạo đường đi ngắn nhất giữa 2 điểm
+    // Gọi từ endpoint: /schedule/route
     async getShortestPath(userLat: number, userLng: number, destLat: number, destLng: number) {
         try {
             // OSRM API: lng,lat;lng,lat
@@ -174,9 +186,9 @@ export class SchedulerService {
             if (response.data && response.data.routes && response.data.routes.length > 0) {
                 const route = response.data.routes[0];
                 return {
-                    distance: route.distance, // mét
-                    duration: route.duration, // giây
-                    geometry: route.geometry, // GeoJSON LineString
+                    distance: route.distance, // khoảng cách: là đường đi ngắn nhất(không phải khoảng cách theo đường chim bay)
+                    duration: route.duration, // Thời gian đi dự kiến
+                    geometry: route.geometry, // GeoJSON LineString : danh sách chi tiết các tọa độ trên đường đi
                 };
             }
             return null;
