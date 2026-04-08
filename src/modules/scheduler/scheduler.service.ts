@@ -101,8 +101,8 @@ export class SchedulerService {
         // Chia cụm (Clustering)
         const orderedPlan = this.clusteringHelper.clusteringStep(rawRestaurants, travelDays, currentLocation);
 
-        // Chấm điểm và lên kế hoạch cuối cùng (Scoring)
-        const finalPlanRaw = await this.scoringHelper.generateFinalPlan(orderedPlan, mealBudgetConfig, preferences);
+        // 4. Lập lịch trình tổng thể (Gemini chi tiết)
+        const { plan: finalPlanRaw, snackCandidates } = await this.scoringHelper.generateFinalPlan(orderedPlan, mealBudgetConfig, preferences);
 
         // Bơm đầy đủ dữ liệu theo RestaurantDto để gửi về Frontend
         const detailedPlan = finalPlanRaw.map(dayPlan => {
@@ -125,6 +125,7 @@ export class SchedulerService {
                         reason: aiChoice.reason,
                         category: aiChoice.category,
                         time: aiChoice.time,
+                        type: 'main', // Mặc định là bữa chính
 
                         // Thông tin gốc từ RestaurantDto (Dữ liệu cố định)
                         id: originalData.id,
@@ -133,7 +134,9 @@ export class SchedulerService {
                         location: originalData.location,
                         priceRange: originalData.priceRange,
                         rating: originalData.rating || 4.0,
-                        openingHours: originalData.openingHours,
+                        openingHours: (originalData.openingHours && typeof originalData.openingHours === 'object')
+                            ? `${originalData.openingHours.open}-${originalData.openingHours.close}`
+                            : (originalData.openingHours || "07:00-22:00"),
                         menu: originalData.menu,
                         guest_id: originalData.guest_id
                     };
@@ -158,6 +161,7 @@ export class SchedulerService {
             },
             count: rawRestaurants.length,
             plan: detailedPlan,
+            snackCandidates: snackCandidates
         };
     }
 

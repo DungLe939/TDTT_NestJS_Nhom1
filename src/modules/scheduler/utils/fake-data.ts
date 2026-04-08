@@ -25,6 +25,13 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
             { name: "Gỏi cá mai", price: 120000, description: "Cá tươi bóp chanh, thính thơm" },
             { name: "Tôm hùm nướng phô mai", price: 450000, description: "Tôm hùm tươi, lớp phô mai béo ngậy" },
             { name: "Ốc hương rang muối", price: 150000, description: "Ốc ngọt, vị mặn cay kích thích" },
+            { name: "Ốc móng tay xào tỏi", price: 85000, description: "Ốc giòn, thơm nức mùi tỏi phi" },
+            { name: "Ốc mỡ xào me", price: 95000, description: "Vị chua ngọt của me đặc trưng" },
+            { name: "Ốc bươu hấp sả", price: 75000, description: "Thơm mùi sả, chấm mắm gừng" },
+            { name: "Sò râu nướng mỡ hành", price: 65000, description: "Hào béo, hành phi thơm" },
+            { name: "Càng ghẹ rang muối", price: 180000, description: "Thịt ghẹ chắc, vị mặn cay" },
+            { name: "Nghêu hấp thái", price: 55000, description: "Nghêu tươi, vị cay nồng kiểu Thái" },
+            { name: "Ốc tỏi nướng mắm", price: 120000, description: "Thịt ốc dai, đậm đà vị mắm" },
             { name: "Mực lá nướng muối ớt", price: 180000, description: "Mực giòn, sốt muối ớt cay nồng" },
             { name: "Cua gạch hấp bia", price: 350000, description: "Cua nhiều gạch, thịt chắc ngọt" },
             { name: "Gà nướng lu", price: 320000, description: "Gà ta thả vườn, da giòn rụm" },
@@ -66,7 +73,14 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
             { name: "Pad Thái", price: 80000, description: "Sợi hủ tiếu xào tôm kiểu Thái Lan" },
             { name: "Gà rán Hàn Quốc xốt cay", price: 120000, description: "Gà giòn tan, xốt cay ngọt sánh mịn" },
             { name: "Mì Ý Carbonara", price: 110000, description: "Béo ngậy sốt kem phô mai và thịt xông khói" },
-            { name: "Cơm trộn Bibimbap", price: 95000, description: "Niêu đá nóng hổi với rau củ và thịt bò" }
+            { name: "Cơm trộn Bibimbap", price: 95000, description: "Niêu đá nóng hổi với rau củ và thịt bò" },
+            { name: "Bánh tráng nướng", price: 25000, description: "Pizza Đà Lạt với trứng, khô bò, hành" },
+            { name: "Trứng vịt lộn sào me", price: 35000, description: "Vị chua ngọt, ăn kèm rau răm" },
+            { name: "Cút lộn xào me", price: 45000, description: "Trứng cút nhỏ, ngấm sốt me đậm đà" },
+            { name: "Bắp xào bơ tép", price: 30000, description: "Bắp ngọt, béo mùi bơ và tép khô" },
+            { name: "Phá lấu bò", price: 45000, description: "Ăn kèm bánh mì, nước cốt dừa béo" },
+            { name: "Xôi chiên phồng", price: 20000, description: "Vàng giòn, nhân thịt băm mộc nhĩ" },
+            { name: "Bánh tráng trộn", price: 30000, description: "Full topping bò khô, trứng cút, xoài" }
         ],
         cafe: [
             // --- CÀ PHÊ (20 món) ---

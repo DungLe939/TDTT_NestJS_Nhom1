@@ -10,4 +10,11 @@ export class MenuItemDto {
     @IsOptional()
     @IsString()
     description?: string;
+
+    @IsOptional()
+    @IsString()
+    category?: string;
+
+    @IsOptional()
+    isSnack?: boolean;
 }

@@ -43,6 +43,9 @@ export class GeminiScoringHelper {
                 - id lấy từ Database phải chính xác nhé
                 - Thêm trường "category" cho mỗi món ăn. 
                     Ví dụ "bún bò", "bún chả" thì category là "bún". "phở bò", "phở gà" thì category là "phở".
+                - Thêm trường "isSnack" (boolean) cho mỗi món ăn:
+                    + isSnack: true nếu là món ăn nhẹ, đồ uống, tráng miệng (ví dụ: cà phê, trà sữa, chè, kem, bánh tráng, trà đào, ốc, nem chua rán, v.v.).
+                    + isSnack: false nếu là món ăn chính (ví dụ: bún, phở, cơm, mì, bánh mì kẹp thịt, lẩu, v.v.).
                 - BẮT BUỘC CHÉP LẠI ĐẦY ĐỦ 100% CÁC MÓN TRONG THẺ MENU CỦA MỖI QUÁN. KHÔNG ĐƯỢC LƯỢC BỎ BẤT KỲ MÓN NÀO.
             [{
                 "id": "...",
@@ -52,7 +55,8 @@ export class GeminiScoringHelper {
                     "name": "...",
                     "price": number,
                     "score": number,
-                    "category": "..."
+                    "category": "...",
+                    "isSnack": boolean
                 }
                 ],
                 "scores": {
