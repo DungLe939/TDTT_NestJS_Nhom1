@@ -38,6 +38,30 @@ export class SchedulerService {
         }
     }
 
+    // Hàm lấy danh sách gợi ý địa điểm (Autocomplete)
+    async getLocationSuggestions(keyword: string) {
+        try {
+            // Gọi api tới openstreetmap với giới hạn 5 kết quả tại VN
+            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(keyword)}&format=json&limit=5&countrycodes=vn`;
+            const response = await axios.get(url, {
+                headers: { 'User-Agent': 'Smart-Tourism-App-HCMUS' }
+            });
+
+            const data = response.data;
+            if (data && data.length > 0) {
+                return data.map((item: any) => ({
+                    name: item.display_name,
+                    lat: parseFloat(item.lat),
+                    lng: parseFloat(item.lon)
+                }));
+            }
+            return [];
+        } catch (error) {
+            console.error("Lỗi Autocomplete:", error);
+            return [];
+        }
+    }
+
     //Hàm quét dữ liệu các quán ăn và lưu vào database
     // được gọi từ endpoint: /schedule/searchLocation
     async processSearchLocation(keyword: string, guestId: string) {
@@ -78,11 +102,11 @@ export class SchedulerService {
     //Hàm tạo lịch trình các quán ăn phù hợp
     // Được gọi từ endpoint: /schedule/generatePlan
     async createTravelPlan(body: any, guest_id: string) {
-        const { 
-          budget, //tổng ngân sách
-          currentLocation,  // tọa độ địa điểm du lịch 
-          preferences,  // sở thích/dị ứng
-          travelDays  //số ngày đi du lịch dự kiến
+        const {
+            budget, //tổng ngân sách
+            currentLocation,  // tọa độ địa điểm du lịch 
+            preferences,  // sở thích/dị ứng
+            travelDays  //số ngày đi du lịch dự kiến
         } = body;
 
         // Phân bổ ngân sách theo từng buổi

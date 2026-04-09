@@ -35,6 +35,21 @@ export class SchedulerController {
     }
   }
 
+  // endpoint: /schedule/autocomplete
+  // Gợi ý địa điểm du lịch (Autocomplete) dựa theo từ khóa, nằm trong phạm vi VN
+  @Post('autocomplete')
+  async autocompleteLocation(@Body() searchDto: SearchLocationDto) {
+    try {
+      if (!searchDto.keyword || searchDto.keyword.length < 2) {
+          return { success: true, data: [] };
+      }
+      const data = await this.schedulerService.getLocationSuggestions(searchDto.keyword);
+      return { success: true, data };
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
   // endpoint: /schedule/generatePlan
   // Tạo ra lộ trình các món ăn phù hợp
   @Post('generatePlan')

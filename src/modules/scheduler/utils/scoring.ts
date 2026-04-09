@@ -83,10 +83,10 @@ export class ScoringHelper {
 
             // BƯỚC 2: TRÍCH XUẤT SNACKS (ĂN VẶT) - Dùng cho phần "chọn bữa ăn phụ".
             scoredRestaurants.forEach(res => {
-              //lấy ra các món ăn vặt theo đánh giá của gemini
+                //lấy ra các món ăn vặt theo đánh giá của gemini
                 const snacksInRes = res.menu?.filter((m: any) => m.isSnack === true);
                 if (snacksInRes && snacksInRes.length > 0) {
-                  //lấy ra các trường thông tin: id, tên quán ăn, tọa độ, giờ mở cửa
+                    //lấy ra các trường thông tin: id, tên quán ăn, tọa độ, giờ mở cửa
                     snackCandidates.push({
                         restaurantId: res.id,
                         restaurantName: res.restaurantName,
