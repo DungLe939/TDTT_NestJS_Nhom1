@@ -7,7 +7,7 @@ import * as crypto from 'crypto';
  * Tự động tạo và quản lý guest_id thông qua Cookie nếu người dùng chưa đăng nhập.
  * Tức là khi user chưa đăng nhập, mà họ vào phần /schedule thì sẽ tự động cấp
  * cho họ 1 cái id để lưu vào database
- * Cái id này sẽ lưu kèm với restaurent để sau này tiện truy vấn theo user
+ * Cái id này sẽ lưu kèm với restaurant để sau này tiện truy vấn theo user
  */
 @Injectable()
 export class GuestSessionMiddleware implements NestMiddleware {
