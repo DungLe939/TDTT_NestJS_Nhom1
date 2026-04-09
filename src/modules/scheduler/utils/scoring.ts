@@ -52,6 +52,10 @@ export class ScoringHelper {
                 scoredRestaurants = dayPlan.cluster.restaurants.map((res: any) => ({
                     id: res.id,
                     restaurantName: res.name,
+                    address: res.address,
+                    location: res.location,
+                    rating: res.rating || 4.2,
+                    priceRange: res.priceRange || 2,
                     menu: res.menu.map((m: any) => {
                         const nameLower = m.name.toLowerCase();
 
@@ -75,9 +79,7 @@ export class ScoringHelper {
                         lunch: { score: Math.floor(Math.random() * 50) + 50, suggestedTime: "12:30" },
                         dinner: { score: Math.floor(Math.random() * 50) + 50, suggestedTime: "19:00" }
                     },
-                    openingHours: res.openingHours && typeof res.openingHours === 'object'
-                        ? `${res.openingHours.open}-${res.openingHours.close}`
-                        : (res.openingHours || "07:00-22:00")
+                    openingHours: res.openingHours
                 }));
             }
 
@@ -234,7 +236,14 @@ export class ScoringHelper {
                         category: selectedDish.category,
                         time: suggestedTime,
                         type: 'main',
-                        reason: selectedDish.fallbackReason || `Được hệ thống chọn dựa trên chiến lược đa dạng hóa món ăn.`
+                        reason: selectedDish.fallbackReason || `Được hệ thống chọn dựa trên chiến lược đa dạng hóa món ăn.`,
+                        // Bổ sung Metadata đề Frontend hiển thị Modal chi tiết
+                        address: selectedRestaurant.address || dayPlan.cluster.restaurants.find((r: any) => r.id === selectedRestaurant.id)?.address,
+                        location: selectedRestaurant.location || dayPlan.cluster.restaurants.find((r: any) => r.id === selectedRestaurant.id)?.location,
+                        openingHours: selectedRestaurant.openingHours,
+                        rating: selectedRestaurant.rating || 4.2,
+                        priceRange: selectedRestaurant.priceRange || 2,
+                        menu: selectedRestaurant.menu // Thực đơn đầy đủ để user có thể đổi món
                     };
                 }
             }
@@ -284,6 +293,10 @@ export class ScoringHelper {
             scoredRestaurants = dayPlan.cluster.restaurants.map((res: any) => ({
                 id: res.id,
                 restaurantName: res.name,
+                address: res.address,
+                location: res.location,
+                rating: res.rating || 4.2,
+                priceRange: res.priceRange || 2,
                 menu: (res.menu || []).map((m: any) => ({
                     name: m.name,
                     price: m.price,
@@ -294,7 +307,8 @@ export class ScoringHelper {
                     breakfast: { score: Math.floor(Math.random() * 50) + 50 },
                     lunch: { score: Math.floor(Math.random() * 50) + 50 },
                     dinner: { score: Math.floor(Math.random() * 50) + 50 }
-                }
+                },
+                openingHours: res.openingHours
             }));
         }
 
@@ -379,6 +393,8 @@ export class ScoringHelper {
                 usedRestaurantsInDay.add(selectedRestaurant.id);
                 if (selectedDish.category) usedCategories.add(selectedDish.category.toLowerCase().trim());
 
+                const original = dayPlan.cluster.restaurants.find((r: any) => r.id === selectedRestaurant.id);
+
                 dayMealsResult[meal] = {
                     id: selectedRestaurant.id,
                     name: selectedRestaurant.restaurantName || selectedRestaurant.name,
@@ -387,7 +403,14 @@ export class ScoringHelper {
                     category: selectedDish.category,
                     time: meal === 'breakfast' ? "08:00" : (meal === 'lunch' ? "12:30" : "19:00"),
                     type: 'main',
-                    reason: "Dựa trên tiêu chí ngon bổ rẻ và sở thích cá nhân của bạn."
+                    reason: "Dựa trên tiêu chí ngon bổ rẻ và sở thích cá nhân của bạn.",
+                    // Bổ sung Metadata cho Modal chi tiết (Streaming Mode)
+                    address: original?.address || "Địa chỉ đang cập nhật",
+                    location: original?.location,
+                    openingHours: original?.openingHours,
+                    rating: original?.rating || 4.2,
+                    priceRange: original?.priceRange || 2,
+                    menu: original?.menu || selectedRestaurant.menu
                 };
             }
         }

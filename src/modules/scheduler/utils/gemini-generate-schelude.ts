@@ -16,7 +16,7 @@ export class GeminiGenerateScheduleHelper {
         // Khởi tạo Google AI với API Key từ biến môi trường
         const apiKey = process.env.GEMINI_API_KEY!;
         this.genAI = new GoogleGenerativeAI(apiKey);
-        
+
         // Sử dụng mô hình gemini-1.5-flash-8b (phiên bản nhanh và tiết kiệm)
         this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     }
@@ -65,7 +65,7 @@ export class GeminiGenerateScheduleHelper {
             // Gửi prompt tới Gemini và nhận kết quả
             const result = await this.model.generateContent(prompt);
             const responseText = result.response.text().replace(/```json|```/g, "").trim();
-            
+
             // Parse kết quả từ chuỗi văn bản sang JSON
             return JSON.parse(responseText);
         } catch (error) {
@@ -73,4 +73,4 @@ export class GeminiGenerateScheduleHelper {
             return []; // Trả về mảng rỗng nếu có lỗi xảy ra
         }
     }
-}
+}

@@ -18,7 +18,7 @@ export class GeminiScoringHelper {
         this.genAI = new GoogleGenerativeAI(apiKey);
         
         // Sử dụng mô hình flash để đạt tốc độ xử lý nhanh nhất
-        this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+        this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     }
 
     /**
