@@ -5,8 +5,8 @@ import { IsString, IsNotEmpty } from 'class-validator';
  * Nhận một từ khóa (keyword) từ người dùng để tìm tọa độ tương ứng.
  */
 export class SearchLocationDto {
-    // Từ khóa tìm kiếm (ví dụ: "Hồ Gươm", "Hà Nội")
-    @IsString()
-    @IsNotEmpty()
-    keyword: string;
+  // Từ khóa tìm kiếm (ví dụ: "Hồ Gươm", "Hà Nội")
+  @IsString()
+  @IsNotEmpty()
+  keyword: string;
 }
