@@ -31,7 +31,6 @@ export class RawFilterHelper {
          */
         const snapshot = await db.collection('restaurants')
             .where('guest_id', '==', guest_id)
-            .where('priceRange', '<=', globalMaxPriceRange)
             .get();
 
         if (snapshot.empty) {
@@ -56,6 +55,9 @@ export class RawFilterHelper {
         const rawRestaurants = snapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as any))
             .filter(restaurant => {
+                // Lọc theo mức giá (Thực hiện lọc tại Server thay vì Firestore để không cần tạo Index)
+                if (restaurant.priceRange > globalMaxPriceRange) return false;
+
                 // Kiểm tra Rating có đạt chuẩn không (>= 2.5)
                 const isGoodRating = (restaurant.rating || 4.0) >= 2.5;
 

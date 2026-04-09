@@ -250,4 +250,153 @@ export class ScoringHelper {
             snackCandidates: snackCandidates //các quán có món ăn vặt được đánh giá cao => hỗ trợ tính năng "chọn bữa ăn phụ"
         };
     }
+
+    // ============================================
+    // TẠO LỊCH TRÌNH CHO 1 NGÀY DUY NHẤT (Streaming Mode)
+    // ============================================
+    // Hàm này giúp tạo lịch trình cho từng ngày một cách độc lập, cho phép hiển thị
+    // kết quả trên giao diện ngay khi AI xử lý xong từng phần (Streaming).
+    async generateSingleDayPlan(
+        dayPlan: any,                      // Cụm nhà hàng của ngày cần xử lý
+        mealBudgetConfig: any,             // Ngân sách từng bữa (Sáng/Trưa/Tối)
+        preferences: any,                  // Sở thích & Dị ứng của người dùng
+        existingUsedCategories: string[]   // Danh sách món đã ăn ở các ngày trước để tránh lặp
+    ) {
+        const usedCategories = new Set<string>(existingUsedCategories);
+        const usedRestaurantsInDay = new Set<string>();
+        const usedCategoriesInDay = new Set<string>();
+        const snackCandidates: any[] = [];
+
+        let scoredRestaurants: any[] = [];
+        try {
+            // Bước quan trọng: Gọi AI (Gemini) chấm điểm quán ăn dựa trên sở thích
+            scoredRestaurants = await this.geminiScoring.scoreRestaurantsWithAI(
+                dayPlan.cluster.restaurants,
+                preferences,
+                mealBudgetConfig
+            );
+        } catch (e) {
+            console.error("Lỗi khi chấm điểm với Gemini:", e);
+        }
+
+        // Fallback: Nếu AI lỗi, hệ thống sẽ tự chấm điểm ngẫu nhiên để không làm gián đoạn trải nghiệm người dùng
+        if (!scoredRestaurants || scoredRestaurants.length === 0) {
+            scoredRestaurants = dayPlan.cluster.restaurants.map((res: any) => ({
+                id: res.id,
+                restaurantName: res.name,
+                menu: (res.menu || []).map((m: any) => ({
+                    name: m.name,
+                    price: m.price,
+                    category: (m.name.split(" ")[0] || "Khác").toLowerCase(),
+                    score: Math.floor(Math.random() * 50) + 50
+                })),
+                scores: {
+                    breakfast: { score: Math.floor(Math.random() * 50) + 50 },
+                    lunch: { score: Math.floor(Math.random() * 50) + 50 },
+                    dinner: { score: Math.floor(Math.random() * 50) + 50 }
+                }
+            }));
+        }
+
+        // Tìm thêm các quán có tiềm năng làm bữa phụ (Snacks)
+        scoredRestaurants.forEach(res => {
+            const snacksInRes = res.menu?.filter((m: any) => {
+                const nameLower = m.name?.toLowerCase() || "";
+                return nameLower.includes("cafe") || nameLower.includes("trà") || 
+                       nameLower.includes("bánh") || nameLower.includes("kem") || 
+                       nameLower.includes("ốc") || nameLower.includes("chè");
+            });
+            if (snacksInRes && snacksInRes.length > 0) {
+                snackCandidates.push({
+                    restaurantId: res.id,
+                    restaurantName: res.restaurantName,
+                    location: dayPlan.cluster.restaurants.find((r: any) => r.id === res.id)?.location,
+                    openingHours: "07:00-22:00",
+                    snacks: snacksInRes
+                });
+            }
+        });
+
+        const meals = ['breakfast', 'lunch', 'dinner'];
+        const dayMealsResult: any = {};
+        const alternatives: any = { breakfast: [], lunch: [], dinner: [] };
+
+        for (const meal of meals) {
+            const targetBudget = mealBudgetConfig[meal];
+            const sortedRestaurants = [...scoredRestaurants].sort((a, b) => {
+                const scoreA = typeof a.scores?.[meal] === 'object' ? a.scores[meal].score : (a.scores?.[meal] ?? 0);
+                const scoreB = typeof b.scores?.[meal] === 'object' ? b.scores[meal].score : (b.scores?.[meal] ?? 0);
+                return scoreB - scoreA;
+            });
+
+            // Gợi ý danh sách 10 quán ăn tốt nhất (để dùng cho tính năng "Đổi quán")
+            alternatives[meal] = sortedRestaurants.slice(0, 10).map(res => {
+                const top5Dishes = [...(res.menu || [])]
+                    .sort((a, b) => (b.score || 0) - (a.score || 0))
+                    .slice(0, 5);
+
+                const original = dayPlan.cluster.restaurants.find(r => r.id === res.id);
+
+                return {
+                    id: res.id,
+                    name: res.restaurantName || res.name,
+                    address: original?.address || "Địa chỉ đang cập nhật",
+                    location: original?.location,
+                    rating: original?.rating || 4.2,
+                    score: typeof res.scores?.[meal] === 'object' ? res.scores[meal].score : (res.scores?.[meal] ?? 0),
+                    openingHours: original?.openingHours || "07:00-22:00",
+                    menu: top5Dishes
+                };
+            });
+
+            let selectedDish: any = null;
+            let selectedRestaurant: any = null;
+
+            // Chiến thuật chọn món: Ưu tiên sự đa dạng và nằm trong ngân sách
+            const strategyLevels = [
+                (d: any, res: any) => {
+                    const cat = d.category?.toLowerCase() || "";
+                    return cat && !usedCategories.has(cat) && !usedRestaurantsInDay.has(res.id) &&
+                        d.price >= targetBudget * 0.7 && d.price <= targetBudget * 1.3;
+                },
+                (d: any, res: any) => !usedCategories.has(d.category?.toLowerCase() || ""),
+                (d: any, res: any) => true
+            ];
+
+            for (const checkStrategy of strategyLevels) {
+                for (const restaurant of sortedRestaurants) {
+                    const dish = restaurant.menu?.find((d: any) => checkStrategy(d, restaurant));
+                    if (dish) {
+                        selectedDish = dish;
+                        selectedRestaurant = restaurant;
+                        break;
+                    }
+                }
+                if (selectedDish) break;
+            }
+
+            if (selectedRestaurant && selectedDish) {
+                usedRestaurantsInDay.add(selectedRestaurant.id);
+                if (selectedDish.category) usedCategories.add(selectedDish.category.toLowerCase().trim());
+
+                dayMealsResult[meal] = {
+                    id: selectedRestaurant.id,
+                    name: selectedRestaurant.restaurantName || selectedRestaurant.name,
+                    dish: selectedDish.name,
+                    price: selectedDish.price,
+                    category: selectedDish.category,
+                    time: meal === 'breakfast' ? "08:00" : (meal === 'lunch' ? "12:30" : "19:00"),
+                    type: 'main',
+                    reason: "Dựa trên tiêu chí ngon bổ rẻ và sở thích cá nhân của bạn."
+                };
+            }
+        }
+
+        return {
+            dayResult: { meals: dayMealsResult, alternatives },
+            snackCandidates,
+            newUsedCategories: Array.from(usedCategories)
+        };
+    }
+
 }

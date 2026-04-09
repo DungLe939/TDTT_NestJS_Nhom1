@@ -50,6 +50,42 @@ export class SchedulerController {
     }
   }
 
+  // ============================================
+  // STREAMING MODE: Endpoints tối ưu hiệu suất
+  // ============================================
+
+  // endpoint: /schedule/preparePlan
+  // CHẠY NGẦM: Lọc thô + Phân cụm quán ăn
+  // Giúp chuẩn bị dữ liệu sẵn sàng trên Server trước khi AI bắt đầu tạo từng ngày.
+  @Post('preparePlan')
+  async preparePlan(@Body() body: any, @Req() req: Request) {
+    try {
+      const guestId = (req as any).guest_id;
+      console.log(`[PreparePlan] Bắt đầu chuẩn bị cho guest: ${guestId}`);
+      const result = await this.schedulerService.preparePlanData(body, guestId);
+      return result;
+    } catch (error) {
+      console.error('[PreparePlan Error]:', error);
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  // endpoint: /schedule/generateDayPlan
+  // STREAMING: Tạo lịch trình cho một ngày cụ thể
+  // Frontend sẽ gọi hàm này nhiều lần để lấy kết quả từng ngày và hiển thị ngay cho user.
+  @Post('generateDayPlan')
+  async generateDayPlan(@Body() body: any, @Req() req: Request) {
+    try {
+      const guestId = (req as any).guest_id;
+      console.log(`[GenerateDayPlan] Bắt đầu tạo ngày ${body.dayIndex} cho guest: ${guestId}`);
+      const result = await this.schedulerService.createSingleDayPlan(guestId, body.dayIndex);
+      return { success: true, ...result };
+    } catch (error) {
+      console.error('[GenerateDayPlan Error]:', error);
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
   // endpoint: /schedule/generatePlan
   // Tạo ra lộ trình các món ăn phù hợp
   @Post('generatePlan')
