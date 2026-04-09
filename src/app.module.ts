@@ -23,6 +23,7 @@ import { RestaurantsModule } from './modules/restaurants/restaurants.module';
      * SchedulerModule: Module xử lý logic lập lịch và gợi ý địa điểm ăn uống.
      */
     SchedulerModule,
+    RestaurantsModule,
   ],
   controllers: [AppController], // Khai báo các Controller của module này
   providers: [AppService], // Khai báo các Service (Business Logic) của module này
