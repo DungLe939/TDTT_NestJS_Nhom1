@@ -256,3 +256,7 @@ describe('getGroupMinRating', () => {
     expect(getGroupMinRating([])).toBe(0);
   });
 });
+
+/*
+npx jest --rootDir=. test/recommendation.spec.ts
+*/
