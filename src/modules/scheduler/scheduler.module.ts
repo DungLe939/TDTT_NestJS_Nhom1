@@ -19,13 +19,11 @@ import { GeminiGenerateScheduleHelper } from './utils/gemini-generate-schelude';
     RawFilterHelper,
     ScoringHelper,
     GeminiScoringHelper,
-    GeminiGenerateScheduleHelper
+    GeminiGenerateScheduleHelper,
   ],
 })
 export class SchedulerModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(GuestSessionMiddleware)
-      .forRoutes(SchedulerController);
+    consumer.apply(GuestSessionMiddleware).forRoutes(SchedulerController);
   }
 }

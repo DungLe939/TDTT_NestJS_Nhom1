@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { RestaurantDto } from "../../restaurants/dto/restaurant.dto";
+import { RestaurantDto } from '../../restaurants/dto/restaurant.dto';
 
 /**
  * GeminiGenerateScheduleHelper: Hỗ trợ tạo lịch trình ăn uống cuối cùng bằng trí tuệ nhân tạo (Gemini).
@@ -9,30 +9,37 @@ import { RestaurantDto } from "../../restaurants/dto/restaurant.dto";
  */
 @Injectable()
 export class GeminiGenerateScheduleHelper {
-    private genAI: GoogleGenerativeAI;
-    private model: any;
+  private genAI: GoogleGenerativeAI;
+  private model: any;
 
-    constructor() {
-        // Khởi tạo Google AI với API Key từ biến môi trường
-        const apiKey = process.env.GEMINI_API_KEY!;
-        this.genAI = new GoogleGenerativeAI(apiKey);
-        
-        // Sử dụng mô hình gemini-1.5-flash-8b (phiên bản nhanh và tiết kiệm)
-        this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    }
+  constructor() {
+    // Khởi tạo Google AI với API Key từ biến môi trường
+    const apiKey = process.env.GEMINI_API_KEY!;
+    this.genAI = new GoogleGenerativeAI(apiKey);
 
-    /**
-     * finalizeScheduleWithAI: Sử dụng AI để sắp xếp các nhà hàng tiềm năng vào một lịch trình hoàn chỉnh.
-     * 
-     * @param topRestaurants Danh sách các nhà hàng đã qua lọc và chấm điểm (tiềm năng nhất)
-     * @param preferences Sở thích cá nhân của người dùng (ví dụ: dị ứng, phong cách ẩm thực)
-     * @param mealBudgets Ngân sách phân bổ cho từng bữa ăn
-     * @param totalDays Tổng số ngày di chuyển
-     * @returns Mảng lịch trình JSON cho từng ngày
-     */
-    async finalizeScheduleWithAI(topRestaurants: any[], preferences: any, mealBudgets: any, totalDays: number) {
-        // Xây dựng Prompt chi tiết để AI hiểu được các quy tắc và ràng buộc
-        const prompt = `
+    // Sử dụng mô hình gemini-1.5-flash-8b (phiên bản nhanh và tiết kiệm)
+    this.model = this.genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash-8b',
+    });
+  }
+
+  /**
+   * finalizeScheduleWithAI: Sử dụng AI để sắp xếp các nhà hàng tiềm năng vào một lịch trình hoàn chỉnh.
+   *
+   * @param topRestaurants Danh sách các nhà hàng đã qua lọc và chấm điểm (tiềm năng nhất)
+   * @param preferences Sở thích cá nhân của người dùng (ví dụ: dị ứng, phong cách ẩm thực)
+   * @param mealBudgets Ngân sách phân bổ cho từng bữa ăn
+   * @param totalDays Tổng số ngày di chuyển
+   * @returns Mảng lịch trình JSON cho từng ngày
+   */
+  async finalizeScheduleWithAI(
+    topRestaurants: any[],
+    preferences: any,
+    mealBudgets: any,
+    totalDays: number,
+  ) {
+    // Xây dựng Prompt chi tiết để AI hiểu được các quy tắc và ràng buộc
+    const prompt = `
             Bạn là một chuyên gia điều phối lịch trình du lịch thông minh.
             NHIỆM VỤ: Chọn đúng 3 quán/ngày cho hành trình ${totalDays} ngày .
 
@@ -61,16 +68,19 @@ export class GeminiGenerateScheduleHelper {
             }]
         `;
 
-        try {
-            // Gửi prompt tới Gemini và nhận kết quả
-            const result = await this.model.generateContent(prompt);
-            const responseText = result.response.text().replace(/```json|```/g, "").trim();
-            
-            // Parse kết quả từ chuỗi văn bản sang JSON
-            return JSON.parse(responseText);
-        } catch (error) {
-            console.error("Lỗi khi tạo lịch trình với AI:", error);
-            return []; // Trả về mảng rỗng nếu có lỗi xảy ra
-        }
+    try {
+      // Gửi prompt tới Gemini và nhận kết quả
+      const result = await this.model.generateContent(prompt);
+      const responseText = result.response
+        .text()
+        .replace(/```json|```/g, '')
+        .trim();
+
+      // Parse kết quả từ chuỗi văn bản sang JSON
+      return JSON.parse(responseText);
+    } catch (error) {
+      console.error('Lỗi khi tạo lịch trình với AI:', error);
+      return []; // Trả về mảng rỗng nếu có lỗi xảy ra
     }
-}
+  }
+}

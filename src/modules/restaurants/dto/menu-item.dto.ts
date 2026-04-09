@@ -5,26 +5,26 @@ import { IsString, IsNumber, IsOptional } from 'class-validator';
  * Dùng để kiểm tra và định dạng dữ liệu món ăn nhận được hoặc gửi đi.
  */
 export class MenuItemDto {
-    // Tên của món ăn
-    @IsString()
-    name: string;
+  // Tên của món ăn
+  @IsString()
+  name: string;
 
-    // Giá của món ăn (đơn vị: VNĐ)
-    @IsNumber()
-    price: number;
+  // Giá của món ăn (đơn vị: VNĐ)
+  @IsNumber()
+  price: number;
 
-    // Mô tả chi tiết món ăn (không bắt buộc)
-    @IsOptional()
-    @IsString()
-    description?: string;
+  // Mô tả chi tiết món ăn (không bắt buộc)
+  @IsOptional()
+  @IsString()
+  description?: string;
 
-    // Phân loại món ăn (ví dụ: "hải sản", "bánh ngọt",...)
-    @IsOptional()
-    @IsString()
-    category?: string;
+  // Phân loại món ăn (ví dụ: "hải sản", "bánh ngọt",...)
+  @IsOptional()
+  @IsString()
+  category?: string;
 
-    // Đánh dấu đây có phải là món ăn nhẹ/ăn vặt (snack) hay không
-    //cái này hỗ trợ cho tính năng "chọn bữa ăn phụ" - tăng trải nghiệm người dùng
-    @IsOptional()
-    isSnack?: boolean;
+  // Đánh dấu đây có phải là món ăn nhẹ/ăn vặt (snack) hay không
+  //cái này hỗ trợ cho tính năng "chọn bữa ăn phụ" - tăng trải nghiệm người dùng
+  @IsOptional()
+  isSnack?: boolean;
 }

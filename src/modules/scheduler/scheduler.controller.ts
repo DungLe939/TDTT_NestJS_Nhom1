@@ -1,4 +1,12 @@
-import { Controller, Post, Body, InternalServerErrorException, HttpStatus, Res, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  InternalServerErrorException,
+  HttpStatus,
+  Res,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { SchedulerService } from './scheduler.service';
 import { SearchLocationDto } from './dto/search-location.dto';
@@ -7,28 +15,37 @@ import { RouteRequestDto } from './dto/route-request.dto';
 //định nghĩa prefix cho route /schedule
 @Controller('schedule')
 export class SchedulerController {
-  constructor(private readonly schedulerService: SchedulerService) { }
+  constructor(private readonly schedulerService: SchedulerService) {}
 
   // endpoint: /schedule/searchLocation
   // Lấy tọa độ dựa vào keyword(tên địa điểm du lịch) do user nhập vào
   @Post('searchLocation')
-  async searchLocation(@Body() searchDto: SearchLocationDto, @Req() req: Request) {
+  async searchLocation(
+    @Body() searchDto: SearchLocationDto,
+    @Req() req: Request,
+  ) {
     try {
       //Được lấy từ middleware
       const guestId = (req as any).guest_id;
 
       // Truyền keyword vào Service(ví dụ : "Vũng Tàu", "Đà Nẵng",...)
-      const result = await this.schedulerService.processSearchLocation(searchDto.keyword, guestId);
+      const result = await this.schedulerService.processSearchLocation(
+        searchDto.keyword,
+        guestId,
+      );
 
       if (!result) {
-        return { success: false, message: 'Không tìm thấy tọa độ cho địa danh này!' };
+        return {
+          success: false,
+          message: 'Không tìm thấy tọa độ cho địa danh này!',
+        };
       }
 
       return {
         success: true,
         message: `Đã cập nhật quán tại: ${searchDto.keyword}`,
         data: result.data,
-        coords: result.coords
+        coords: result.coords,
       };
     } catch (error) {
       throw new InternalServerErrorException(error.message);
@@ -47,7 +64,7 @@ export class SchedulerController {
 
     return {
       success: true,
-      ...result
+      ...result,
     };
   }
 
@@ -62,7 +79,7 @@ export class SchedulerController {
         routeDto.userLat,
         routeDto.userLng,
         routeDto.destLat,
-        routeDto.destLng
+        routeDto.destLng,
       );
 
       if (!result) {
@@ -71,7 +88,7 @@ export class SchedulerController {
 
       return {
         success: true,
-        ...result
+        ...result,
       };
     } catch (error) {
       throw new InternalServerErrorException(error.message);
