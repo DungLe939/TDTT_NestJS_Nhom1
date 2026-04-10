@@ -34,16 +34,13 @@ export const fetchNearbyRestaurants = async (lat: number, lon: number, radius = 
     const baseLon = lon || 105.8542;
 
     /**
-     * Mở rộng phạm vi tìm kiếm bằng mô hình lưới 3x3 (9 điểm quét).
-     * Vì API LocationIQ giới hạn số lượng kết quả cho mỗi lần gọi, việc quét đa điểm giúp lấy được nhiều dữ liệu hơn.
+     * TỐI ƯU HÓA:
+     * Thay vì quét 9 điểm (mô hình 3x3), ta rút xuống còn 5 điểm (1 tâm + 4 góc) để giảm số lần gọi API.
+     * Với 5 điểm * 3 tag = 15 requests. Giúp giảm thời gian chờ từ ~18s xuống còn ~10s.
      */
-    const offset = 0.04; // Khoảng cách lệch giữa các điểm quét
+    const offset = 0.05; // Khoảng cách lệch giữa các điểm quét (~5.5km)
     const scanPoints = [
         { lat: baseLat, lon: baseLon }, // Trung tâm
-        { lat: baseLat + offset, lon: baseLon }, // Bắc
-        { lat: baseLat - offset, lon: baseLon }, // Nam
-        { lat: baseLat, lon: baseLon + offset }, // Đông
-        { lat: baseLat, lon: baseLon - offset }, // Tây
         { lat: baseLat + offset, lon: baseLon + offset }, // Đông Bắc
         { lat: baseLat + offset, lon: baseLon - offset }, // Tây Bắc
         { lat: baseLat - offset, lon: baseLon + offset }, // Đông Nam
