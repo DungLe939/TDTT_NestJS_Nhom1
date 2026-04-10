@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { db } from '../../../providers/firebase.provider';
 
 /**
- * PlanCacheHelper: Bộ nhớ đệm (Cache) trên RAM Server.
- * Dùng để lưu trữ tạm thời kết quả phân cụm quán ăn (Clustering) 
- * giữa bước preparePlan và bước generateDayPlan. 
+ * PlanCacheHelper: Bộ nhớ đệm (Cache) bền vững lưu tại Firestore.
+ * Giúp duy trì dữ liệu lịch trình ngay cả khi restart server và hỗ trợ đa người dùng.
  */
 interface CachedPlanData {
     rawRestaurants: any[];       // Danh sách quán đã lọc sơ bộ
@@ -17,64 +17,89 @@ interface CachedPlanData {
 
 @Injectable()
 export class PlanCacheHelper {
-    private cache = new Map<string, CachedPlanData>();
-    private readonly TTL = 20 * 60 * 1000; // 20 phút (Đủ để người dùng khám phá lịch trình)
+    private readonly collectionName = 'plan_caches';
+    private readonly TTL = 20 * 60 * 1000; // 20 phút
 
-    // Lưu trữ dữ liệu chuẩn bị vào Cache
-    set(guestId: string, data: Omit<CachedPlanData, 'createdAt' | 'dayScores'>) {
-        this.cache.set(guestId, {
-            ...data,
-            dayScores: {},
-            createdAt: Date.now()
-        });
-        this.cleanup();
+    // Lưu trữ dữ liệu chuẩn bị vào Cache (Firestore)
+    async set(guestId: string, data: Omit<CachedPlanData, 'createdAt' | 'dayScores'>) {
+        try {
+            const cacheData: CachedPlanData = {
+                ...data,
+                dayScores: {},
+                createdAt: Date.now()
+            };
+            await db.collection(this.collectionName).doc(guestId).set(cacheData);
+        } catch (error) {
+            console.error('[PlanCache] Lỗi ghi dữ liệu lên Firestore:', error.message);
+        }
     }
 
-    // Lấy dữ liệu từ Cache
-    get(guestId: string): CachedPlanData | null {
-        const entry = this.cache.get(guestId);
-        if (!entry) return null;
+    // Lấy dữ liệu từ Cache (Firestore)
+    async get(guestId: string): Promise<CachedPlanData | null> {
+        try {
+            const doc = await db.collection(this.collectionName).doc(guestId).get();
+            if (!doc.exists) return null;
 
-        // Kiểm tra xem dữ liệu còn sống (TTL) không
-        if (Date.now() - entry.createdAt > this.TTL) {
-            this.cache.delete(guestId);
+            const entry = doc.data() as CachedPlanData;
+
+            // Kiểm tra xem dữ liệu còn sống (TTL) không
+            if (Date.now() - entry.createdAt > this.TTL) {
+                await db.collection(this.collectionName).doc(guestId).delete();
+                return null;
+            }
+            return entry;
+        } catch (error) {
+            console.error('[PlanCache] Lỗi đọc dữ liệu từ Firestore:', error.message);
             return null;
         }
-        return entry;
     }
 
     // Lưu kết quả quán đã chấm điểm AI cho một ngày cụ thể
-    saveDayScores(guestId: string, dayIndex: number, scoredRestaurants: any[]) {
-        const entry = this.cache.get(guestId);
-        if (entry) {
-            entry.dayScores[dayIndex] = scoredRestaurants;
+    async saveDayScores(guestId: string, dayIndex: number, scoredRestaurants: any[]) {
+        try {
+            const docRef = db.collection(this.collectionName).doc(guestId);
+            const doc = await docRef.get();
+            if (doc.exists) {
+                const entry = doc.data() as CachedPlanData;
+                entry.dayScores[dayIndex] = scoredRestaurants;
+                await docRef.update({ dayScores: entry.dayScores });
+            }
+        } catch (error) {
+            console.error('[PlanCache] Lỗi cập nhật DayScores lên Firestore:', error.message);
         }
     }
 
     // Lấy danh sách quán đã chấm điểm của một ngày từ Cache
-    getDayScores(guestId: string, dayIndex: number): any[] | null {
-        const entry = this.cache.get(guestId);
-        if (entry && entry.dayScores[dayIndex]) {
-            return entry.dayScores[dayIndex];
+    async getDayScores(guestId: string, dayIndex: number): Promise<any[] | null> {
+        try {
+            const doc = await db.collection(this.collectionName).doc(guestId).get();
+            if (doc.exists) {
+                const entry = doc.data() as CachedPlanData;
+                if (entry.dayScores && entry.dayScores[dayIndex]) {
+                    return entry.dayScores[dayIndex];
+                }
+            }
+            return null;
+        } catch (error) {
+            console.error('[PlanCache] Lỗi lấy DayScores từ Firestore:', error.message);
+            return null;
         }
-        return null;
     }
 
     // Cập nhật danh sách món ăn đã dùng để ngày tiếp theo không bị trùng
-    updateUsedCategories(guestId: string, categories: string[]) {
-        const entry = this.cache.get(guestId);
-        if (entry) {
-            entry.usedCategories = categories;
+    async updateUsedCategories(guestId: string, categories: string[]) {
+        try {
+            await db.collection(this.collectionName).doc(guestId).update({
+                usedCategories: categories
+            });
+        } catch (error) {
+            console.error('[PlanCache] Lỗi cập nhật UsedCategories lên Firestore:', error.message);
         }
     }
 
-    // Dọn dẹp các cache đã quá hạn
-    private cleanup() {
-        const now = Date.now();
-        for (const [key, entry] of this.cache.entries()) {
-            if (now - entry.createdAt > this.TTL) {
-                this.cache.delete(key);
-            }
-        }
+    // Dọn dẹp các cache đã quá hạn (Thực thi khi có yêu cầu mới hoặc định kỳ)
+    // Lưu ý: Trong bản lite này, chúng ta chủ yếu dọn dẹp trong hàm get()
+    async cleanup() {
+        // Có thể mở rộng thêm logic dọn dẹp hàng loạt tại đây nếu cần
     }
 }

@@ -239,9 +239,9 @@ export class SchedulerService {
         // Thực hiện phân cụm (Clustering) quán ăn theo số ngày đi
         const orderedPlan = this.clusteringHelper.clusteringStep(rawRestaurants, travelDays, currentLocation);
 
-        console.log(`[PreparePlanData] Phân cụm xong. Đang lưu vào RAM Cache...`);
-        // LƯU KẾT QUẢ VÀO RAM CAHCE: Để các lượt gọi sau không phải tính lại bước này
-        this.planCacheHelper.set(guestId, {
+        console.log(`[PreparePlanData] Phân cụm xong. Đang lưu vào Cloud Cache...`);
+        // LƯU KẾT QUẢ VÀO CLOUD CACHE: Để các lượt gọi sau không phải tính lại bước này
+        await this.planCacheHelper.set(guestId, {
             rawRestaurants,
             orderedPlan,
             mealBudgetConfig,
@@ -263,7 +263,7 @@ export class SchedulerService {
      * Frontend gọi hàm này lặp lại cho từng ngày (0, 1, 2...) để hiển thị kết quả dần dần.
      */
     async createSingleDayPlan(guestId: string, dayIndex: number) {
-        const cache = this.planCacheHelper.get(guestId);
+        const cache = await this.planCacheHelper.get(guestId);
         if (!cache) {
             throw new Error("Lỗi: Phiên chuẩn bị dữ liệu đã hết hạn hoặc không tồn tại. Vui lòng thử lại.");
         }
@@ -282,11 +282,11 @@ export class SchedulerService {
         );
 
         // Cập nhật danh sách loại món đã ăn để ngày hôm sau AI không chọn trùng
-        this.planCacheHelper.updateUsedCategories(guestId, result.newUsedCategories);
+        await this.planCacheHelper.updateUsedCategories(guestId, result.newUsedCategories);
 
         // LƯU KẾT QUẢ ĐÃ CHẤM ĐIỂM VÀO CACHE: Để phục vụ tính năng "Đổi món" (Swap Meal)
         // Việc này giúp tránh việc phải gọi lại AI Gemini cực kỳ tốn kém và chậm chạp.
-        this.planCacheHelper.saveDayScores(guestId, dayIndex, result.scoredRestaurants);
+        await this.planCacheHelper.saveDayScores(guestId, dayIndex, result.scoredRestaurants);
 
         return {
             day: dayIndex + 1,
@@ -322,10 +322,10 @@ export class SchedulerService {
      * getSwapOptions: Lấy danh sách các món ăn thay thế cho một bữa ăn cụ thể.
      */
     async getSwapOptions(guestId: string, dayIndex: number, mealType: string, userLat?: number, userLng?: number) {
-        const cache = this.planCacheHelper.get(guestId);
+        const cache = await this.planCacheHelper.get(guestId);
         if (!cache) return { success: false, message: "Session expired" };
 
-        const scoredRestaurants = this.planCacheHelper.getDayScores(guestId, dayIndex);
+        const scoredRestaurants = await this.planCacheHelper.getDayScores(guestId, dayIndex);
         if (!scoredRestaurants) return { success: false, message: "Chưa có dữ liệu chấm điểm cho ngày này. Vui lòng tạo lịch trình trước." };
 
         const sortedRestaurants = [...scoredRestaurants].sort((a, b) => {
