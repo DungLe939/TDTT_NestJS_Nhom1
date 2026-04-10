@@ -26,7 +26,7 @@ import {
   GroupRecommendationDto,
   RestaurantResultDto,
 } from '../restaurants/dto/group-recommendation.dto';
-import { MOCK_RESTAURANTS } from '../restaurants/data/mock/restaurants.mock';
+import { RestaurantsService } from '../restaurants/restaurants.service';
 import {
   computeIndividualSimilarities,
   aggregateGroupScore,
@@ -37,7 +37,7 @@ import {
   AVG_WEIGHT,
   MIN_WEIGHT,
 } from './algorithms/group-aggregation';
-import { MAX_DISTANCE_KM, TOP_K } from './algorithms/scoring';
+import { MAX_DISTANCE_KM, TOP_K, budgetToPriceRange } from './algorithms/scoring';
 import { calculateDistance } from '../../utils/haversine.util';
 import { IRestaurant } from '../../shared/interfaces/restaurant.interface';
 import { IUser } from '../../shared/interfaces/user.interface';
@@ -45,9 +45,16 @@ import { IUser } from '../../shared/interfaces/user.interface';
 @Injectable()
 export class EngineService {
   /**
+   * Inject RestaurantsService qua constructor (Dependency Injection).
+   * Tuân thủ Rule_Code.md: không khởi tạo bằng `new`.
+   */
+  constructor(private readonly restaurantsService: RestaurantsService) {}
+
+  /**
    * Gợi ý nhà hàng phù hợp nhất cho nhóm người dùng.
    *
    * Pipeline:
+   *   - Bước 0 → Lấy dữ liệu nhà hàng từ Firestore (theo guest_id)
    *   - Bước 1 → Profile Construction (taste vectors từ DTO)
    *   - Bước 2 → Hard Constraint Filtering (distance, budget, rating, allergies)
    *   - Bước 3 → Cosine Similarity (individual sim[i][j])
@@ -55,10 +62,20 @@ export class EngineService {
    *   - Bước 5 → Ranking & Output (top K)
    *
    * @param dto - Input gồm groupUsers, currentLocation, aggregationWeights
+   * @param guestId - ID phiên làm việc (lấy từ middleware, giống scheduler)
    * @returns Top K nhà hàng, sắp xếp theo matchedScore giảm dần
    */
-  getGroupRecommendations(dto: GroupRecommendationDto): RestaurantResultDto[] {
+  async getGroupRecommendations(
+    dto: GroupRecommendationDto,
+    guestId: string,
+  ): Promise<RestaurantResultDto[]> {
     const { groupUsers, currentLocation, aggregationWeights } = dto;
+
+    // =====================================================
+    // Bước 0 — Lấy dữ liệu nhà hàng từ Firestore
+    // Y hệt cách scheduler lấy dữ liệu: query theo guest_id
+    // =====================================================
+    const allRestaurants = await this.restaurantsService.findByGuestId(guestId);
 
     // =====================================================
     // Bước 1 — Profile Construction
@@ -81,11 +98,14 @@ export class EngineService {
     const groupMinRating = getGroupMinRating(users);
     const groupAllergies = getGroupAllergies(users);
 
+    // 2a-extra. Chuyển đổi ngân sách VND → priceRange (1-3)
+    const groupPriceRange = budgetToPriceRange(groupBudget);
+
     // 2b. Tính khoảng cách và lọc
     const filteredRestaurants: { restaurant: IRestaurant; distance: number }[] =
       [];
 
-    for (const restaurant of MOCK_RESTAURANTS) {
+    for (const restaurant of allRestaurants) {
       // Filter: Khoảng cách > tolerance → loại
       const distance = calculateDistance(
         currentLocation.lat,
@@ -97,8 +117,8 @@ export class EngineService {
         continue;
       }
 
-      // Filter: Giá > ngân sách nhóm → loại
-      if (restaurant.averagePrice > groupBudget) {
+      // Filter: priceRange > mức giá nhóm chấp nhận → loại
+      if (restaurant.priceRange > groupPriceRange) {
         continue;
       }
 
@@ -151,7 +171,7 @@ export class EngineService {
 
         return {
           name: restaurant.name,
-          averagePrice: restaurant.averagePrice,
+          priceRange: restaurant.priceRange,
           distance: Math.round(distance * 100) / 100,
           rating: restaurant.rating,
           matchedScore,

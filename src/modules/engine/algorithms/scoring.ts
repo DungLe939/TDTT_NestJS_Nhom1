@@ -34,3 +34,20 @@ export const TASTE_DIMENSIONS = [
   'hai_san',    // [6] Seafood
   'chay',       // [7] Vegetarian
 ] as const;
+
+/**
+ * Chuyển đổi ngân sách (VND) sang mức giá priceRange (1-3).
+ *
+ * Mapping tương tự scheduler:
+ *   - 1 (Rẻ):         budget < 50,000
+ *   - 2 (Trung bình):  50,000 ≤ budget < 200,000
+ *   - 3 (Sang trọng):  budget ≥ 200,000
+ *
+ * @param budgetVND - Ngân sách tối đa của user (VND)
+ * @returns Mức priceRange tối đa cho phép (1-3)
+ */
+export function budgetToPriceRange(budgetVND: number): number {
+  if (budgetVND >= 200000) return 3;
+  if (budgetVND >= 50000) return 2;
+  return 1;
+}
