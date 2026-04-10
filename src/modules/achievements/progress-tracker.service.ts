@@ -7,6 +7,9 @@ export class ProgressTrackerService {
     private readonly logger = new Logger(ProgressTrackerService.name);
     private readonly collectionName = 'progress_trackers';
 
+    /**
+     * Lấy tiến độ của user đối với một achievement nào đó
+     */
     async getTracker(userId: string, achievementId: string): Promise<ProgressTracker | null> {
         const snapshot = await db.collection(this.collectionName)
             .where('userId', '==', userId)
@@ -24,6 +27,9 @@ export class ProgressTrackerService {
         } as ProgressTracker;
     }
 
+    /**
+     * Tạo tiến độ của user đối với một achievement nào đó
+     */
     async createTracker(userId: string, achievementId: string, requiredCount: number): Promise<ProgressTracker> {
         const tracker: ProgressTracker = {
             userId,
@@ -38,6 +44,9 @@ export class ProgressTrackerService {
         return { ...tracker, id: docRef.id };
     }
 
+    /**
+     * Cập nhật tiến độ của user đối với một achievement nào đó
+     */
     async updateProgress(trackerId: string, currentCount: number, requiredCount: number): Promise<ProgressTracker> {
         const progressPercent = Math.min(Math.floor((currentCount / requiredCount) * 100), 100);
         const isCompleted = currentCount >= requiredCount;
