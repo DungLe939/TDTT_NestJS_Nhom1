@@ -88,14 +88,17 @@ export class ScoringHelper {
                 //lấy ra các món ăn vặt theo đánh giá của gemini
                 const snacksInRes = res.menu?.filter((m: any) => m.isSnack === true);
                 if (snacksInRes && snacksInRes.length > 0) {
-                    //lấy ra các trường thông tin: id, tên quán ăn, tọa độ, giờ mở cửa
+                    //lấy ra các trường thông tin: id, tên quán ăn, tọa độ, giờ mở cửa, và các metadata khác
+                    const original = dayPlan.cluster.restaurants.find((r: any) => r.id === res.id);
                     snackCandidates.push({
                         restaurantId: res.id,
-                        restaurantName: res.restaurantName,
-                        location: dayPlan.cluster.restaurants.find((r: any) => r.id === res.id)?.location,
-                        openingHours: (res.openingHours && typeof res.openingHours === 'object')
-                            ? `${res.openingHours.open}-${res.openingHours.close}`
-                            : (res.openingHours || "07:00-22:00"),
+                        restaurantName: res.restaurantName || res.name,
+                        address: res.address || original?.address,
+                        location: res.location || original?.location,
+                        rating: res.rating || original?.rating || 4.2,
+                        priceRange: res.priceRange || original?.priceRange || 2,
+                        openingHours: res.openingHours || original?.openingHours || { open: "07:00", close: "22:00" },
+                        menu: res.menu || original?.menu,
                         snacks: snacksInRes // danh sách các món ăn vặt của cửa hàng này 
                     });
                 }
@@ -321,11 +324,16 @@ export class ScoringHelper {
                        nameLower.includes("ốc") || nameLower.includes("chè");
             });
             if (snacksInRes && snacksInRes.length > 0) {
+                const original = dayPlan.cluster.restaurants.find((r: any) => r.id === res.id);
                 snackCandidates.push({
                     restaurantId: res.id,
-                    restaurantName: res.restaurantName,
-                    location: dayPlan.cluster.restaurants.find((r: any) => r.id === res.id)?.location,
-                    openingHours: "07:00-22:00",
+                    restaurantName: res.restaurantName || res.name,
+                    address: res.address || original?.address,
+                    location: res.location || original?.location,
+                    rating: res.rating || original?.rating || 4.2,
+                    priceRange: res.priceRange || original?.priceRange || 2,
+                    openingHours: res.openingHours || original?.openingHours || { open: "07:00", close: "22:00" },
+                    menu: res.menu || original?.menu,
                     snacks: snacksInRes
                 });
             }
