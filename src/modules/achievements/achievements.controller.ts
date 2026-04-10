@@ -73,3 +73,4 @@ export class AchievementsController {
         return this.achievementsService.createReward(dto);
     }
 }
+
