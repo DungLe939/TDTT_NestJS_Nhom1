@@ -1,7 +1,7 @@
 import { IsString, IsNotEmpty } from 'class-validator';
 
 /**
- * Use when redeeming a reward, user only
+ * Dùng khi đổi một reward, chỉ dành cho user
  */
 
 export class RedeemRewardDto {

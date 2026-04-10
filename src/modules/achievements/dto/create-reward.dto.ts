@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 import type { RewardType } from '../interfaces/achievement.interface';
 
 /**
- * Use when creating a new reward, admin only
+ * Dùng khi tạo một reward mới, chỉ dành cho admin
  */
 
 export class CreateRewardDto {

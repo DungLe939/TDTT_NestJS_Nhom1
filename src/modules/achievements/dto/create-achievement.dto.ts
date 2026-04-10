@@ -3,9 +3,8 @@ import { Type } from 'class-transformer';
 import type { ActivityEventType, CuisineType } from '../interfaces/achievement.interface';
 
 /**
- * Use when creating a new achievement, admin only
+ * Dùng khi tạo một achievement mới, chỉ dành cho admin
  */
-
 
 class AchievementConditionFiltersDto {
     @IsOptional()
