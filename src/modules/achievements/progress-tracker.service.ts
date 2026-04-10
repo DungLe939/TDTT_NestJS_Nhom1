@@ -66,4 +66,3 @@ export class ProgressTrackerService {
         return { id: updatedDoc.id, ...updatedDoc.data() } as ProgressTracker;
     }
 }
-
