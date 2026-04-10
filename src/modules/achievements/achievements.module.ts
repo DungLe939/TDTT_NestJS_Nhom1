@@ -6,6 +6,6 @@ import { AchievementsController } from './achievements.controller';
 @Module({
     controllers: [AchievementsController],
     providers: [AchievementService, ProgressTrackerService],
-    exports: [AchievementService] // Xuat ra ngoai neu cac modules khac can handleActivityEvent
+    exports: [AchievementService] // Xuất ra ngoài nếu các modules khác cần handleActivityEvent
 })
 export class AchievementsModule { }
