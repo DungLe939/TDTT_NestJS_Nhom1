@@ -1,7 +1,7 @@
 export type RewardType = 'voucher' | 'badge' | 'points';
 export type CuisineType = 'japanese' | 'vietnamese' | 'italian' | 'korean' | 'chinese' | 'thai' | 'french' | 'indian';
 
-// actions that are triggered by the user from Blog or other Features
+// Các hành động từ user (khi dùng Blog, feature 1, 2, 3, 4) sẽ được gửi đến AchievementsModule
 export type ActivityEventType =
     | 'POST_CREATED'
     | 'RESTAURANT_VISITED'
@@ -11,7 +11,7 @@ export type ActivityEventType =
     | 'SCHEDULE_COMPLETED'
     | 'GROUP_TASTE_USED';
 
-// payload sent from the external feature
+// payload được gửi từ các feature khác
 export interface ActivityEvent {
     userId: string;
     type: ActivityEventType;
@@ -19,7 +19,7 @@ export interface ActivityEvent {
     payload: any; // e.g. { cuisineType: "japanese" }
 }
 
-// achievement condition: actions that user need to do to get a reward
+// achievement condition: hành động mà user cần làm để nhận reward
 export interface AchievementCondition {
     eventType: ActivityEventType;
     requiredCount: number;
@@ -30,7 +30,7 @@ export interface AchievementCondition {
     };
 }
 
-// reward definition
+// định nghĩa reward
 export interface Reward {
     id?: string;
     type: RewardType;
@@ -39,7 +39,7 @@ export interface Reward {
     expiresAt?: Date;
 }
 
-// achievement definition
+// định nghĩa achievement
 export interface Achievement {
     id?: string;
     name: string;
@@ -49,7 +49,7 @@ export interface Achievement {
     isActive: boolean;
 }
 
-// user's progress towards one specific achievement
+// tiến độ của user đối với một achievement nào đó
 export interface ProgressTracker {
     id?: string;
     userId: string;
