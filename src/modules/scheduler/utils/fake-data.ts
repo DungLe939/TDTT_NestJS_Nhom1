@@ -825,6 +825,32 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
     ],
   };
 
+  /**
+   * Bảng taste_vector mẫu theo category.
+   *
+   * Taste vector 8 chiều:
+   *   [0] cay, [1] ngot, [2] man, [3] chua,
+   *   [4] beo, [5] thanh_dam, [6] hai_san, [7] chay
+   *
+   * Mỗi lần fake sẽ random ±0.15 quanh giá trị base để tạo đa dạng.
+   */
+  const tasteBases: Record<string, number[]> = {
+    //          [cay,  ngot, man,  chua, beo,  thanh, hai,  chay]
+    restaurant: [0.4,  0.2,  0.7,  0.2,  0.5,  0.4,  0.1,  0.0],
+    cafe:       [0.0,  0.8,  0.1,  0.1,  0.3,  0.6,  0.0,  0.2],
+    pub:        [0.5,  0.1,  0.6,  0.2,  0.6,  0.2,  0.3,  0.0],
+  };
+
+  /**
+   * Bảng nguyên liệu mẫu theo category.
+   * Dùng để kiểm tra dị ứng trong group recommendation.
+   */
+  const ingredientPools: Record<string, string[]> = {
+    restaurant: ['thit_heo', 'thit_bo', 'ca', 'trung', 'rau', 'dau_hu', 'tom', 'banh_pho', 'bun', 'nuoc_mam'],
+    cafe:       ['sua', 'duong', 'tra', 'kem', 'trai_cay', 'bot_mi', 'socola', 'dau_phong'],
+    pub:        ['thit_heo', 'thit_bo', 'tom', 'muc', 'dau_phong', 'trung', 'pho_mai', 'khoai_tay'],
+  };
+
   return rawRestaurants.map((res) => {
     //phần random menu cho quán ăn
     const cuisineLower = (res.cuisine || 'restaurant').toLowerCase();
@@ -841,6 +867,20 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
         description: item.description,
       }));
 
+    // Sinh taste_vector: base ± random offset, clamp [0, 1]
+    const base = tasteBases[category] || tasteBases['restaurant'];
+    const taste_vector = base.map((v) => {
+      const offset = (Math.random() - 0.5) * 0.3; // ±0.15
+      return Math.round(Math.max(0, Math.min(1, v + offset)) * 10) / 10;
+    });
+
+    // Sinh menu_ingredients: chọn ngẫu nhiên 3-5 nguyên liệu
+    const allIngredients = ingredientPools[category] || ingredientPools['restaurant'];
+    const ingredientCount = Math.floor(Math.random() * 3) + 3;
+    const menu_ingredients = [...allIngredients]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, ingredientCount);
+
     const restaurant: RestaurantDto = {
       name: res.name,
       address: res.address,
@@ -855,6 +895,13 @@ export const fakeRemainingData = (rawRestaurants: any[], guestId: string) => {
       guest_id: guestId,
     };
 
-    return restaurant;
+    // Trả về object mở rộng: RestaurantDto + taste_vector + menu_ingredients
+    // Các trường bổ sung này sẽ được lưu vào Firestore để dùng cho group recommendation
+    return {
+      ...restaurant,
+      taste_vector,
+      menu_ingredients,
+    };
   });
 };
+

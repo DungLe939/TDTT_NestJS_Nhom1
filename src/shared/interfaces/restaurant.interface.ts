@@ -11,14 +11,22 @@
  */
 
 export interface IRestaurant {
+  /** Firestore document ID */
+  id?: string;
+  
   /** Tên nhà hàng */
   name: string;
 
   /** Toạ độ GPS */
   location: { lat: number; lng: number };
 
-  /** Giá trung bình (VND) — mapping: price_range trong Firebase */
-  averagePrice: number;
+  /**
+   * Phân khúc giá của nhà hàng — mapping: priceRange trong Firebase.
+   * 1: Rẻ (< 50,000 VND)
+   * 2: Trung bình (50,000 – 199,999 VND)
+   * 3: Sang trọng (≥ 200,000 VND)
+   */
+  priceRange: number;
 
   /**
    * Vector đặc trưng ẩm thực — giá trị [0.0, 1.0] cho mỗi chiều.

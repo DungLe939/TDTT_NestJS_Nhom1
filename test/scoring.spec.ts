@@ -97,7 +97,7 @@ describe('computeIndividualSimilarities', () => {
     const restaurant: IRestaurant = {
       name: 'Test',
       location: { lat: 10.77, lng: 106.69 },
-      averagePrice: 50000,
+      priceRange: 2,
       taste_vector: [0.8, 0.1, 0.7, 0.2, 0.4, 0.3, 0.0, 0.0],
       rating: 4.0,
     };
