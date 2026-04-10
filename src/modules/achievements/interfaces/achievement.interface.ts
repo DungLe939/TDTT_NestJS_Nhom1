@@ -1,7 +1,7 @@
 export type RewardType = 'voucher' | 'badge' | 'points';
 export type CuisineType = 'japanese' | 'vietnamese' | 'italian' | 'korean' | 'chinese' | 'thai' | 'french' | 'indian';
 
-// Any action triggered by the user from Blog or other Features
+// actions that are triggered by the user from Blog or other Features
 export type ActivityEventType =
     | 'POST_CREATED'
     | 'RESTAURANT_VISITED'
@@ -11,7 +11,7 @@ export type ActivityEventType =
     | 'SCHEDULE_COMPLETED'
     | 'GROUP_TASTE_USED';
 
-// The payload sent from the external feature
+// payload sent from the external feature
 export interface ActivityEvent {
     userId: string;
     type: ActivityEventType;
@@ -19,7 +19,7 @@ export interface ActivityEvent {
     payload: any; // e.g. { cuisineType: "japanese" }
 }
 
-// How we define what actions cause a reward
+// achievement condition: actions that user need to do to get a reward
 export interface AchievementCondition {
     eventType: ActivityEventType;
     requiredCount: number;
@@ -30,7 +30,7 @@ export interface AchievementCondition {
     };
 }
 
-// A reward that can be earned
+// reward definition
 export interface Reward {
     id?: string;
     type: RewardType;
@@ -39,7 +39,7 @@ export interface Reward {
     expiresAt?: Date;
 }
 
-// The core Achievement Definition
+// achievement definition
 export interface Achievement {
     id?: string;
     name: string;
@@ -49,7 +49,7 @@ export interface Achievement {
     isActive: boolean;
 }
 
-// Represents one user's progress towards one specific achievement
+// user's progress towards one specific achievement
 export interface ProgressTracker {
     id?: string;
     userId: string;
