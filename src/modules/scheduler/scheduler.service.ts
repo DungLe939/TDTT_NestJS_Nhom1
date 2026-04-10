@@ -7,6 +7,7 @@ import { ClusteringHelper } from './algorithms/k-means';
 import { ScoringHelper } from './utils/scoring';
 import { RawFilterHelper } from './utils/raw-filter';
 import { PlanCacheHelper } from './utils/plan-cache';
+import { calculateDistance } from './algorithms/haversine';
 
 @Injectable()
 export class SchedulerService {
@@ -283,6 +284,10 @@ export class SchedulerService {
         // Cập nhật danh sách loại món đã ăn để ngày hôm sau AI không chọn trùng
         this.planCacheHelper.updateUsedCategories(guestId, result.newUsedCategories);
 
+        // LƯU KẾT QUẢ ĐÃ CHẤM ĐIỂM VÀO CACHE: Để phục vụ tính năng "Đổi món" (Swap Meal)
+        // Việc này giúp tránh việc phải gọi lại AI Gemini cực kỳ tốn kém và chậm chạp.
+        this.planCacheHelper.saveDayScores(guestId, dayIndex, result.scoredRestaurants);
+
         return {
             day: dayIndex + 1,
             meals: result.dayResult.meals,
@@ -301,15 +306,79 @@ export class SchedulerService {
             if (response.data && response.data.routes && response.data.routes.length > 0) {
                 const route = response.data.routes[0];
                 return {
-                    distance: route.distance, // khoảng cách: là đường đi ngắn nhất(không phải khoảng cách theo đường chim bay)
-                    duration: route.duration, // Thời gian đi dự kiến
-                    geometry: route.geometry, // GeoJSON LineString : danh sách chi tiết các tọa độ trên đường đi
+                    distance: route.distance,
+                    duration: route.duration,
+                    geometry: route.geometry,
                 };
             }
             return null;
         } catch (error) {
-            console.error("Lỗi OSRM Routing:", error);
+            console.error("OSRM Routing Error:", error);
             return null;
         }
+    }
+
+    /**
+     * getSwapOptions: Lấy danh sách các món ăn thay thế cho một bữa ăn cụ thể.
+     */
+    async getSwapOptions(guestId: string, dayIndex: number, mealType: string, userLat?: number, userLng?: number) {
+        const cache = this.planCacheHelper.get(guestId);
+        if (!cache) return { success: false, message: "Session expired" };
+
+        const scoredRestaurants = this.planCacheHelper.getDayScores(guestId, dayIndex);
+        if (!scoredRestaurants) return { success: false, message: "Chưa có dữ liệu chấm điểm cho ngày này. Vui lòng tạo lịch trình trước." };
+
+        const sortedRestaurants = [...scoredRestaurants].sort((a, b) => {
+            const scoreA = typeof a.scores?.[mealType] === 'object' ? a.scores[mealType].score : (a.scores?.[mealType] ?? 0);
+            const scoreB = typeof b.scores?.[mealType] === 'object' ? b.scores[mealType].score : (b.scores?.[mealType] ?? 0);
+            return scoreB - scoreA;
+        }).slice(0, 20);
+
+        const refLat = userLat || cache.orderedPlan[dayIndex]?.cluster?.centroid[1];
+        const refLng = userLng || cache.orderedPlan[dayIndex]?.cluster?.centroid[0];
+
+        const dishMap = new Map<string, any>();
+
+        sortedRestaurants.forEach(res => {
+            const resScore = typeof res.scores?.[mealType] === 'object' ? res.scores[mealType].score : (res.scores?.[mealType] ?? 0);
+            const dist = (refLat && refLng)
+                ? calculateDistance(refLat, refLng, res.location.coordinates[1], res.location.coordinates[0])
+                : 0;
+
+            res.menu?.forEach((item: any) => {
+                const existing = dishMap.get(item.name);
+
+                const shouldReplace = !existing ||
+                    (resScore > existing.resScore) ||
+                    (resScore === existing.resScore && dist < existing.distance);
+
+                if (shouldReplace) {
+                    const original = cache.orderedPlan[dayIndex]?.cluster?.restaurants.find(r => r.id === res.id);
+                    dishMap.set(item.name, {
+                        ...res,
+                        address: res.address || original?.address,
+                        location: res.location || original?.location,
+                        openingHours: res.openingHours || original?.openingHours,
+                        dish: item.name,
+                        name: res.restaurantName || res.name,
+                        price: item.price,
+                        resScore: resScore,
+                        distance: dist
+                    });
+                }
+            });
+        });
+
+        const finalOptions = Array.from(dishMap.values())
+            .sort((a, b) => {
+                if (b.resScore !== a.resScore) return b.resScore - a.resScore;
+                return a.distance - b.distance;
+            })
+            .slice(0, 30);
+
+        return {
+            success: true,
+            options: finalOptions
+        };
     }
 }

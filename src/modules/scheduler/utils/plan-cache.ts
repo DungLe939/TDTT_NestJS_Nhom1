@@ -11,6 +11,7 @@ interface CachedPlanData {
     mealBudgetConfig: any;       // Cấu hình ngân sách từng bữa
     preferences: any;            // Sở thích người dùng
     usedCategories: string[];    // Các loại món đã chọn (tránh trùng lặp giữa các ngày)
+    dayScores: Record<number, any[]>; // Lưu trữ quán đã chấm điểm theo ngày: dayIndex -> scoredRestaurants
     createdAt: number;
 }
 
@@ -20,9 +21,10 @@ export class PlanCacheHelper {
     private readonly TTL = 20 * 60 * 1000; // 20 phút (Đủ để người dùng khám phá lịch trình)
 
     // Lưu trữ dữ liệu chuẩn bị vào Cache
-    set(guestId: string, data: Omit<CachedPlanData, 'createdAt'>) {
+    set(guestId: string, data: Omit<CachedPlanData, 'createdAt' | 'dayScores'>) {
         this.cache.set(guestId, {
             ...data,
+            dayScores: {},
             createdAt: Date.now()
         });
         this.cleanup();
@@ -39,6 +41,23 @@ export class PlanCacheHelper {
             return null;
         }
         return entry;
+    }
+
+    // Lưu kết quả quán đã chấm điểm AI cho một ngày cụ thể
+    saveDayScores(guestId: string, dayIndex: number, scoredRestaurants: any[]) {
+        const entry = this.cache.get(guestId);
+        if (entry) {
+            entry.dayScores[dayIndex] = scoredRestaurants;
+        }
+    }
+
+    // Lấy danh sách quán đã chấm điểm của một ngày từ Cache
+    getDayScores(guestId: string, dayIndex: number): any[] | null {
+        const entry = this.cache.get(guestId);
+        if (entry && entry.dayScores[dayIndex]) {
+            return entry.dayScores[dayIndex];
+        }
+        return null;
     }
 
     // Cập nhật danh sách món ăn đã dùng để ngày tiếp theo không bị trùng

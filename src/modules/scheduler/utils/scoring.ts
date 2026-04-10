@@ -426,7 +426,8 @@ export class ScoringHelper {
         return {
             dayResult: { meals: dayMealsResult, alternatives },
             snackCandidates,
-            newUsedCategories: Array.from(usedCategories)
+            newUsedCategories: Array.from(usedCategories),
+            scoredRestaurants: scoredRestaurants // Trả về để lưu Cache phục vụ tính năng Đổi món
         };
     }
 

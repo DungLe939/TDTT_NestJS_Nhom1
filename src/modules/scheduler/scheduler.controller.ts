@@ -86,6 +86,28 @@ export class SchedulerController {
     }
   }
 
+  // endpoint: /schedule/swapOptions
+  // Lấy 30 món ăn tiềm năng nhất (Deduplicated) để cho user đổi món (Swap Feature)
+  @Post('swapOptions')
+  async swapOptions(@Body() body: any, @Req() req: Request) {
+    try {
+      const guestId = (req as any).guest_id;
+      const { dayIndex, mealType, userLat, userLng } = body;
+      
+      const result = await this.schedulerService.getSwapOptions(
+        guestId, 
+        dayIndex, 
+        mealType, 
+        userLat, 
+        userLng
+      );
+      return result;
+    } catch (error) {
+        console.error('[SwapOptions Error]:', error);
+        throw new InternalServerErrorException(error.message);
+    }
+  }
+
   // endpoint: /schedule/generatePlan
   // Tạo ra lộ trình các món ăn phù hợp
   @Post('generatePlan')
