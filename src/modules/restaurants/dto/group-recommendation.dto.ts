@@ -2,7 +2,7 @@
  * Group Recommendation DTOs
  *
  * Validate input từ API endpoint POST /restaurants/recommend/group.
- * Tuân thủ Firebase Firestore schema:
+ * Firebase Firestore schema:
  *   users: {uid, name, taste_vector: [], budget, allergies: [], ...}
  *
  * @module restaurants/dto
@@ -18,6 +18,7 @@ import {
   Max,
   ValidateNested,
   ArrayMinSize,
+  ArrayMaxSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -102,6 +103,7 @@ export class GroupRecommendationDto {
   @ValidateNested({ each: true })
   @Type(() => UserPreferenceDto)
   @ArrayMinSize(1)
+  @ArrayMaxSize(15, { message: 'Kích thước nhóm tối đa là 15 người để đảm bảo hiệu năng' })
   groupUsers!: UserPreferenceDto[];
 
   /** Toạ độ hiện tại của nhóm */
@@ -124,8 +126,11 @@ export class RestaurantResultDto {
   /** Tên nhà hàng */
   name!: string;
 
-  /** Giá trung bình (VND) */
-  averagePrice!: number;
+  /**
+   * Phân khúc giá (1-3).
+   * 1: Rẻ, 2: Trung bình, 3: Sang trọng
+   */
+  priceRange!: number;
 
   /** Khoảng cách (km), làm tròn 2 chữ số */
   distance!: number;
