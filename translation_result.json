@@ -1,0 +1,25 @@
+{
+  "en2vi_test": {
+    "success": true,
+    "data": {
+      "input": "The seafood is fresh",
+      "output": "Hải sản tươi sống",
+      "method": "VinAI",
+      "sentiment": {
+        "label": "POS",
+        "score": 0.98
+      }
+    },
+    "timestamp": "2026-04-09T06:59:37.086Z"
+  },
+  "vi2en_test": {
+    "success": true,
+    "data": {
+      "input": "Hải sản rất tươi",
+      "output": "Very fresh seafood",
+      "method": "VinAI",
+      "sentiment": null
+    },
+    "timestamp": "2026-04-09T06:59:38.042Z"
+  }
+}
