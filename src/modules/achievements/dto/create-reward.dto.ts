@@ -24,4 +24,3 @@ export class CreateRewardDto {
     @IsDate()
     expiresAt?: Date;
 }
-

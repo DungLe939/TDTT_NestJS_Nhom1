@@ -57,4 +57,3 @@ export class CreateAchievementDto {
     @IsBoolean()
     isActive?: boolean;
 }
-
