@@ -3,7 +3,9 @@ import { db } from '../../providers/firebase.provider';
 import {
     Achievement,
     ActivityEvent,
-    Reward
+    Reward,
+    AchievementCondition,
+    RewardType
 } from './interfaces/achievement.interface';
 import { ProgressTrackerService } from './progress-tracker.service';
 
@@ -87,6 +89,23 @@ export class AchievementService {
         return true;
     }
 
+    // For time-windowed achievements, recalculate from the activity log
+    private async recountFromLog(userId: string, condition: AchievementCondition): Promise<number> {
+        let query = db.collection('activity_logs')
+            .where('userId', '==', userId)
+            .where('type', '==', condition.eventType);
+
+        if (condition.filters?.withinDays) {
+            const since = new Date(Date.now() - condition.filters.withinDays * 86400000);
+            query = query.where('occurredAt', '>=', since);
+        }
+        if (condition.filters?.cuisineType) {
+            query = query.where('payload.cuisineType', '==', condition.filters.cuisineType);
+        }
+        const snap = await query.get();
+        return snap.size;
+    }
+
     /**
      * Update ProgressTracker records trong Firebase.
      */
@@ -107,8 +126,12 @@ export class AchievementService {
             return;
         }
 
+        // nếu là time-windowed event, xem lại từ log. Ngược lại, +1.
+        const newCount = achievement.condition.filters?.withinDays
+            ? await this.recountFromLog(userId, achievement.condition)
+            : tracker.currentCount + 1;
+
         // update progress
-        const newCount = tracker.currentCount + 1;
         const updatedTracker = await this.progressTrackerService.updateProgress(tracker.id!, newCount, requiredCount);
 
         // nếu mission hoàn thành lần đầu tiên, cấp reward
@@ -122,6 +145,13 @@ export class AchievementService {
      * Idempotent — sẽ không cấp một phần thưởng trùng lặp cho cùng một cặp (userId, achievementId).
      */
     private async issueReward(userId: string, achievementId: string, rewardId: string): Promise<void> {
+        // kiểm tra xem user đã nhận reward này chưa
+        const existing = await db.collection('user_rewards')
+            .where('userId', '==', userId)
+            .where('achievementId', '==', achievementId)
+            .get();
+        if (!existing.empty) return;
+
         this.logger.log(`Issuing reward ${rewardId} to user ${userId} for achievement ${achievementId}`);
 
         // lấy thông tin reward
@@ -174,23 +204,22 @@ export class AchievementService {
         if (snapshot.empty) return [];
 
         const achievements: Achievement[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Achievement[];
-        const results: any[] = [];
 
-        for (const ach of achievements) {
-            let tracker = await this.progressTrackerService.getTracker(userId, ach.id!);
-            if (!tracker) {
-                tracker = {
-                    userId,
-                    achievementId: ach.id!,
-                    currentCount: 0,
-                    requiredCount: ach.condition.requiredCount,
-                    progressPercent: 0,
-                    isCompleted: false
-                };
-            }
-            results.push({ ...ach, progress: tracker });
-        }
-        return results;
+        const trackers = await Promise.all(
+            achievements.map(ach => this.progressTrackerService.getTracker(userId, ach.id!))
+        );
+
+        return achievements.map((ach, i) => ({
+            ...ach,
+            progress: trackers[i] ?? {
+                userId,
+                achievementId: ach.id!,
+                currentCount: 0,
+                requiredCount: ach.condition.requiredCount,
+                progressPercent: 0,
+                isCompleted: false,
+            },
+        }));
     }
 
     /**
@@ -220,20 +249,20 @@ export class AchievementService {
     /**
      * Trả về tất cả phần thưởng đã nhận bởi user với đầy đủ chi tiết reward.
      */
-    async getUserRewards(userId: string): Promise<any[]> {
+    async getUserRewards(userId: string): Promise<Reward[]> {
         const snapshot = await db.collection('user_rewards').where('userId', '==', userId).get();
         if (snapshot.empty) return [];
 
         const userRewards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-        const resolvedRewards: any[] = [];
 
-        for (const ur of userRewards) {
-            const rewardDoc = await db.collection('rewards').doc(ur.rewardId).get();
-            const reward = rewardDoc.exists ? { id: rewardDoc.id, ...rewardDoc.data() } : null;
-            resolvedRewards.push({ ...ur, reward });
-        }
+        const rewardDocs = await Promise.all(
+            userRewards.map(ur => db.collection('rewards').doc(ur.rewardId).get())
+        );
 
-        return resolvedRewards;
+        return userRewards.map((ur, i) => ({
+            ...ur,
+            reward: rewardDocs[i].exists ? { id: rewardDocs[i].id, ...rewardDocs[i].data() } : null,
+        }));
     }
 
     /**
@@ -288,7 +317,12 @@ export class AchievementService {
     /**
      * Định nghĩa một achievment mới. Chỉ dành cho admin.
      */
-    async createAchievement(dto: any): Promise<Achievement> {
+    async createAchievement(dto: {
+        name: string;
+        description: string;
+        condition: AchievementCondition;
+        rewardId: string;
+    }): Promise<Achievement> {
         const achievement = { ...dto, isActive: true };
         const docRef = await db.collection('achievements').add(achievement);
         return { id: docRef.id, ...achievement } as Achievement;
@@ -297,7 +331,12 @@ export class AchievementService {
     /**
      * Định nghĩa một reward mới. Chỉ dành cho admin.
      */
-    async createReward(dto: any): Promise<Reward> {
+    async createReward(dto: {
+        type: RewardType;
+        value: number;
+        description: string;
+        expiresAt?: Date;
+    }): Promise<Reward> {
         const reward = { ...dto };
         const docRef = await db.collection('rewards').add(reward);
         return { id: docRef.id, ...reward } as Reward;

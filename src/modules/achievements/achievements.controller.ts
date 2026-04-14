@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UsePipes, ValidationPipe, UseGuards } from '@nestjs/common';
 import { AchievementService } from './achievements.service';
 import { CreateAchievementDto } from './dto/create-achievement.dto';
 import { CreateRewardDto } from './dto/create-reward.dto';
@@ -46,6 +46,8 @@ export class AchievementsController {
      * @param userId       - người dùng đang redeem voucher
      * @param userRewardId - ID của UserReward record (không phải ID của Reward)
      * @returns            - discountPercent để người dùng áp dụng
+     * 
+     * TODO: add guard
      */
     @Post('rewards/redeem')
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -56,8 +58,11 @@ export class AchievementsController {
     /**
      * POST /achievements
      * Định nghĩa một achievment mới. Chỉ dành cho admin.
+     * 
+     * TODO: add guard
      */
     @Post('achievements')
+    // @UseGuards(FirebaseAuthGuard, AdminGuard)
     @UsePipes(new ValidationPipe({ transform: true }))
     async createAchievement(@Body() dto: CreateAchievementDto) {
         return this.achievementsService.createAchievement(dto);
@@ -66,8 +71,11 @@ export class AchievementsController {
     /**
      * POST /rewards
      * Định nghĩa một reward mới. Chỉ dành cho admin.
+     * 
+     * TODO: add guard
      */
     @Post('rewards')
+    // @UseGuards(FirebaseAuthGuard, AdminGuard)
     @UsePipes(new ValidationPipe({ transform: true }))
     async createReward(@Body() dto: CreateRewardDto) {
         return this.achievementsService.createReward(dto);
