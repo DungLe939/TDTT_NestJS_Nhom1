@@ -164,14 +164,17 @@ export class AchievementService {
             }
         }
 
-        const userReward = {
+        const userReward: any = {
             userId,
             rewardId,
             achievementId,
             issuedAt: new Date(),
-            expiresAt,
             isUsed: false,
         };
+
+        if (expiresAt !== undefined) {
+            userReward.expiresAt = expiresAt;
+        }
 
         // ghi reward vào database cho user
         const docRef = await db.collection('user_rewards').add(userReward);
@@ -322,8 +325,25 @@ export class AchievementService {
         description: string;
         condition: AchievementCondition;
         rewardId: string;
+        isActive?: boolean;
     }): Promise<Achievement> {
-        const achievement = { ...dto, isActive: true };
+        const achievement = {
+            name: dto.name,
+            description: dto.description,
+            rewardId: dto.rewardId,
+            isActive: dto.isActive ?? true,
+            condition: {
+                eventType: dto.condition.eventType,
+                requiredCount: dto.condition.requiredCount,
+                ...(dto.condition.filters !== undefined && {
+                    filters: {
+                        ...(dto.condition.filters.cuisineType !== undefined && { cuisineType: dto.condition.filters.cuisineType }),
+                        ...(dto.condition.filters.withinDays !== undefined && { withinDays: dto.condition.filters.withinDays }),
+                        ...(dto.condition.filters.tag !== undefined && { tag: dto.condition.filters.tag }),
+                    }
+                }),
+            },
+        };
         const docRef = await db.collection('achievements').add(achievement);
         return { id: docRef.id, ...achievement } as Achievement;
     }
@@ -337,7 +357,14 @@ export class AchievementService {
         description: string;
         expiresAt?: Date;
     }): Promise<Reward> {
-        const reward = { ...dto };
+        const reward: any = {
+            type: dto.type,
+            value: dto.value,
+            description: dto.description,
+        };
+        if (dto.expiresAt) {
+            reward.expiresAt = dto.expiresAt;
+        }
         const docRef = await db.collection('rewards').add(reward);
         return { id: docRef.id, ...reward } as Reward;
     }
