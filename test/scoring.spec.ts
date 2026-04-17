@@ -49,6 +49,19 @@ describe('aggregateGroupScore', () => {
     const expectedFinal = 0.5 * expectedAvg + 0.5 * expectedMin; // 0.6
     expect(result).toBeCloseTo(expectedFinal, 1);
   });
+
+  it('should normalize custom weights when their sum is not 1', () => {
+    const similarities = [0.9, 0.5];
+    const result = aggregateGroupScore(similarities, {
+      avgWeight: 1,
+      minWeight: 1,
+    });
+
+    const expectedAvg = (0.9 + 0.5) / 2; // 0.7
+    const expectedMin = 0.5;
+    const expectedFinal = 0.5 * expectedAvg + 0.5 * expectedMin; // 0.6
+    expect(result).toBeCloseTo(expectedFinal, 1);
+  });
 });
 
 describe('getGroupBudget', () => {
@@ -150,7 +163,3 @@ describe('getGroupMinRating', () => {
     expect(getGroupMinRating([])).toBe(0);
   });
 });
-
-/*
-npx jest --rootDir=. test/scoring.spec.ts  
-*/

@@ -1,33 +1,17 @@
-/**
- * Group Aggregation Algorithms
- *
- * Kết hợp điểm tương thích cá nhân thành điểm nhóm.
- *
- *   - Utilitarian (tối đa hóa tổng lợi ích): Average Score
- *   - Egalitarian / Rawlsian (bảo vệ người yếu nhất): Least Misery
- *   - Trade-off: final_score = AVG_WEIGHT × avg + MIN_WEIGHT × min
- *
- * @module engine/algorithms
- */
+/** Thuật toán tổng hợp điểm nhóm từ các điểm tương thích cá nhân. */
 
 import { IUser } from '../../../shared/interfaces/user.interface';
 import { cosineSimilarity } from './cosine-similarity';
 import { IRestaurant } from '../../../shared/interfaces/restaurant.interface';
 
-/** Trọng số của Average Score trong công thức aggregation */
+/** Trọng số mặc định cho Average Score. */
 export const AVG_WEIGHT = 0.7;
 
-/** Trọng số của Least Misery (min score) trong công thức aggregation */
+/** Trọng số mặc định cho Least Misery (min score). */
 export const MIN_WEIGHT = 0.3;
 
 /**
- * Tính similarity matrix: sim[i][j] giữa mỗi user i và restaurant j.
- *
- *   Dùng Cosine Similarity cho từng cặp (user, restaurant).
- *   Output: ma trận sim[i][j] = độ phù hợp giữa user_i và restaurant_j.
- *
- * Độ phức tạp: O(M × N × d) với M restaurants, N users, d dimensions.
- *
+ * Tính điểm similarity của từng user với một nhà hàng.
  * @param users - Danh sách người dùng trong nhóm
  * @param restaurant - Nhà hàng cần tính similarity
  * @returns Mảng điểm similarity cho mỗi user với nhà hàng này
@@ -42,23 +26,9 @@ export function computeIndividualSimilarities(
 }
 
 /**
- * Tổng hợp điểm nhóm từ ma trận similarity cá nhân
- *
- * Chiến lược kết hợp:
- *   - avg_score  = trung bình cộng → phản ánh mức hài lòng chung của cả nhóm
- *   - min_score  = giá trị nhỏ nhất → bảo vệ thành viên kém hài lòng nhất
- *   - final_score = AVG_WEIGHT × avg_score + MIN_WEIGHT × min_score
- *
- * Lý do:
- *   - 70% ưu tiên lợi ích chung: đa số hài lòng
- *   - 30% bảo vệ cá nhân: tránh chọn nhà hàng mà có người rất ghét
- *
- * Ví dụ: similarities = [0.9, 0.8, 0.2]
- *   - avg = 0.633
- *   - min = 0.2
- *   - final = 0.7 × 0.633 + 0.3 × 0.2 = 0.503
- *   → điểm bị kéo xuống vì có 1 người không phù hợp
- *
+ * Tổng hợp điểm nhóm theo công thức:
+ * `final = avgWeight * average(similarities) + minWeight * min(similarities)`.
+ * Nếu trọng số custom không hợp lệ, hàm tự quay về trọng số mặc định.
  * @param similarities - Mảng điểm cosine similarity cho mỗi user
  * @param weights - Trọng số tuỳ chỉnh { avgWeight, minWeight }
  * @returns Điểm tổng hợp nhóm, làm tròn 2 chữ số thập phân
@@ -71,17 +41,20 @@ export function aggregateGroupScore(
     return 0;
   }
 
-  const effectiveAvgWeight = weights?.avgWeight ?? AVG_WEIGHT;
-  const effectiveMinWeight = weights?.minWeight ?? MIN_WEIGHT;
+  const inputAvgWeight = weights?.avgWeight ?? AVG_WEIGHT;
+  const inputMinWeight = weights?.minWeight ?? MIN_WEIGHT;
+  const totalWeight = inputAvgWeight + inputMinWeight;
 
-  // Average Score — tối ưu tổng lợi ích
+  const [effectiveAvgWeight, effectiveMinWeight] =
+    totalWeight > 0
+      ? [inputAvgWeight / totalWeight, inputMinWeight / totalWeight]
+      : [AVG_WEIGHT, MIN_WEIGHT];
+
   const avgScore =
     similarities.reduce((sum, s) => sum + s, 0) / similarities.length;
 
-  // Least Misery — bảo vệ người yếu nhất
   const minScore = Math.min(...similarities);
 
-  // Final Score — kết hợp hai mục tiêu
   const finalScore =
     effectiveAvgWeight * avgScore + effectiveMinWeight * minScore;
 
@@ -89,15 +62,7 @@ export function aggregateGroupScore(
 }
 
 /**
- * Xác định ngân sách chung của nhóm (Constraint Aggregation).
- *
- * Chiến lược: Least Misery — lấy giá trị NHỎ NHẤT.
- *
- * Lý do chọn MIN thay vì AVERAGE:
- *   - MIN đảm bảo MỌI thành viên đều đủ khả năng chi trả
- *   - AVERAGE có thể khiến thành viên ngân sách thấp không đủ tiền
- *   - Ví dụ: [100k, 200k, 50k] → MIN=50k (ai cũng trả được)
- *
+ * Lấy ngân sách chung bằng giá trị nhỏ nhất để mọi thành viên đều chi trả được.
  * @param users - Danh sách người dùng trong nhóm
  * @returns Ngân sách nhỏ nhất trong nhóm (VND)
  */
@@ -109,10 +74,7 @@ export function getGroupBudget(users: IUser[]): number {
 }
 
 /**
- * Xác định khoảng cách tối đa của nhóm (Constraint Aggregation).
- *
- * Lấy MIN distance_tolerance để đảm bảo mọi thành viên đều chấp nhận.
- *
+ * Lấy khoảng cách tối đa của nhóm theo giá trị nhỏ nhất `distance_tolerance`.
  * @param users - Danh sách người dùng trong nhóm
  * @param defaultDistance - Khoảng cách mặc định nếu user không set (km)
  * @returns Khoảng cách tối đa của nhóm (km)
@@ -130,10 +92,7 @@ export function getGroupDistanceTolerance(
 }
 
 /**
- * Xác định ngưỡng rating tối thiểu của nhóm (Constraint Aggregation).
- *
- * Lấy MAX min_rating để đảm bảo mọi thành viên đều hài lòng.
- *
+ * Lấy ngưỡng rating tối thiểu của nhóm theo giá trị lớn nhất `min_rating`.
  * @param users - Danh sách người dùng trong nhóm
  * @returns Ngưỡng rating cao nhất trong nhóm
  */
@@ -145,10 +104,7 @@ export function getGroupMinRating(users: IUser[]): number {
 }
 
 /**
- * Tổng hợp danh sách dị ứng của cả nhóm (Constraint Aggregation).
- *
- * Lấy UNION tất cả allergies → nếu BẤT KỲ ai dị ứng, nhà hàng đó bị loại.
- *
+ * Hợp nhất danh sách dị ứng của nhóm theo phép UNION.
  * @param users - Danh sách người dùng trong nhóm
  * @returns Set tất cả allergies của nhóm
  */
