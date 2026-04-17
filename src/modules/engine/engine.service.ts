@@ -37,17 +37,11 @@ export class EngineService {
   }
 
   /**
-   * Pipeline gợi ý nhà hàng cho nhóm.
-   *
-   * Luồng:
-   * 1. Query Firestore theo guest_id → danh sách nhà hàng
-   * 2. Map DTO users → IUser
-   * 3. Tính constraint aggregation (budget, distance, rating, allergies)
-   * 4. Filter cứng → nếu filter quá chặt, tự nới lỏng (relaxation)
-   * 5. Tính cosine similarity → aggregate score → rank
-   * 6. Trả top K kết quả
-   *
-   * Thêm relaxation logic — nếu filter cứng loại hết, tự nới lỏng dần.
+   * Tính gợi ý nhà hàng cho nhóm theo pipeline: load data, filter constraints,
+   * relaxation khi quá chặt, sau đó chấm điểm và trả về top K.
+   * @param dto Dữ liệu thành viên, vị trí hiện tại và trọng số tùy chỉnh.
+   * @param guestId Mã phiên để truy vấn tập nhà hàng tương ứng.
+   * @returns Danh sách nhà hàng đã xếp hạng cho cả nhóm.
    */
   async getGroupRecommendations(
     dto: GroupRecommendationDto,
@@ -183,6 +177,13 @@ export class EngineService {
     }
 
     // ---- Scoring ----
+    const resolvedWeights = aggregationWeights
+      ? {
+          avgWeight: aggregationWeights.avgWeight ?? AVG_WEIGHT,
+          minWeight: aggregationWeights.minWeight ?? MIN_WEIGHT,
+        }
+      : undefined;
+
     const scoredResults: ScoreResultDto[] = filteredRestaurants.map(
       ({ restaurant, distance }) => {
         const similarities = computeIndividualSimilarities(users, restaurant);
@@ -191,13 +192,6 @@ export class EngineService {
           userId: user.userId ?? `user_${index}`,
           similarity: Math.round(similarities[index] * 100) / 100,
         }));
-
-        const resolvedWeights = aggregationWeights
-          ? {
-              avgWeight: aggregationWeights.avgWeight ?? AVG_WEIGHT,
-              minWeight: aggregationWeights.minWeight ?? MIN_WEIGHT,
-            }
-          : undefined;
 
         const finalScore = aggregateGroupScore(similarities, resolvedWeights);
 

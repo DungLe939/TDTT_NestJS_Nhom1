@@ -14,7 +14,7 @@
  * @module restaurants
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { db } from '../../providers/firebase.provider';
 import { IRestaurant } from '../../shared/interfaces/restaurant.interface';
 import NodeCache = require('node-cache');
@@ -48,11 +48,16 @@ export class RestaurantsService {
    * @returns Danh sách nhà hàng đã map sang IRestaurant interface
    */
   async findByGuestId(guestId: string): Promise<IRestaurant[]> {
+    const normalizedGuestId = guestId?.trim();
+    if (!normalizedGuestId) {
+      throw new BadRequestException('guest_id is required');
+    }
+
     // ---- Bước 1: Kiểm tra cache ----
-    const cachedData = this.cache.get<IRestaurant[]>(guestId);
+    const cachedData = this.cache.get<IRestaurant[]>(normalizedGuestId);
     if (cachedData) {
       this.logger.log(
-        `Trả về ${cachedData.length} nhà hàng từ cache cho guest_id: ${guestId}`,
+        `Trả về ${cachedData.length} nhà hàng từ cache cho guest_id: ${normalizedGuestId}`,
       );
       return cachedData;
     }
@@ -60,7 +65,7 @@ export class RestaurantsService {
     // ---- Bước 2: Query Firestore ----
     const snapshot = await db
       .collection('restaurants')
-      .where('guest_id', '==', guestId)
+      .where('guest_id', '==', normalizedGuestId)
       .limit(500)
       .get();
 
@@ -73,7 +78,7 @@ export class RestaurantsService {
     }
 
     this.logger.log(
-      `Đã tìm thấy ${snapshot.size} nhà hàng cho guest_id: ${guestId}`,
+      `Đã tìm thấy ${snapshot.size} nhà hàng cho guest_id: ${normalizedGuestId}`,
     );
 
     const restaurants: IRestaurant[] = snapshot.docs.map((doc) => {
@@ -106,7 +111,7 @@ export class RestaurantsService {
 
     // ---- Bước 3: Lưu vào cache ----
     // Do node-cache đã cấu hình mặc định là 300s nên chỉ cần truyền key & data
-    this.cache.set(guestId, restaurants);
+    this.cache.set(normalizedGuestId, restaurants);
 
     return restaurants;
   }
