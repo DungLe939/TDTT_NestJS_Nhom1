@@ -2,7 +2,7 @@
  * Normalize Utility
  *
  * Pure function chuẩn hoá giá trị số về khoảng [0, 1].
- * 
+ *
  * @module utils
  */
 

@@ -37,12 +37,12 @@ export function computeIndividualSimilarities(
   restaurant: IRestaurant,
 ): number[] {
   return users.map((user) =>
-    cosineSimilarity(user.taste_vector, restaurant.taste_vector),
+    cosineSimilarity(user.tasteVector, restaurant.tasteVector),
   );
 }
 
 /**
- * Tổng hợp điểm nhóm từ ma trận similarity cá nhân 
+ * Tổng hợp điểm nhóm từ ma trận similarity cá nhân
  *
  * Chiến lược kết hợp:
  *   - avg_score  = trung bình cộng → phản ánh mức hài lòng chung của cả nhóm

@@ -1,53 +1,43 @@
-/**
- * Restaurants Controller
- *
- * Expose API endpoint cho feature gợi ý nhà hàng nhóm.
- * Chỉ nhận request → gọi EngineService → trả response.
- *
- * Flow y hệt SchedulerController:
- *   - GuestSessionMiddleware tự động cấp guest_id qua cookie
- *   - Controller lấy guest_id từ req.guest_id
- *   - Truyền guest_id vào Service
- *
- * @module restaurants
- */
-
-import { Controller, Post, Body, UsePipes, ValidationPipe, Req } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Post,
+  Body,
+  UsePipes,
+  ValidationPipe,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { EngineService } from '../engine/engine.service';
 import {
   GroupRecommendationDto,
-  RestaurantResultDto,
+  GroupRecommendationResponseDto,
 } from './dto/group-recommendation.dto';
 
-@Controller('restaurants')
+type GuestRequest = Request & { guest_id?: string };
+
+@Controller('group')
 export class RestaurantsController {
-  /**
-   * Inject EngineService qua constructor.
-   */
   constructor(private readonly engineService: EngineService) {}
 
-  /**
-   * Gợi ý nhà hàng phù hợp nhất cho nhóm.
-   *
-   * Endpoint: POST /restaurants/recommend/group
-   * Body: GroupRecommendationDto (validated bởi class-validator)
-   * Response: RestaurantResultDto[] — top 5 nhà hàng
-   *
-   * Controller chỉ làm nhiệm vụ:
-   *   1. Nhận và validate request body
-   *   2. Lấy guest_id từ middleware (giống scheduler)
-   *   3. Gọi engineService.getGroupRecommendations()
-   *   4. Trả kết quả về client
-   */
-  @Post('recommend/group')
+  @Post('recommend')
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
-  async getGroupRecommendations(
+  /**
+   * Nhận request gợi ý nhóm và chuyển cho tầng engine xử lý.
+   * @param dto Dữ liệu sở thích và ràng buộc của nhóm.
+   * @param req Request đã được middleware gắn guest session.
+   * @returns Danh sách nhà hàng được chấm điểm theo mức phù hợp nhóm.
+   */
+  getGroupRecommendations(
     @Body() dto: GroupRecommendationDto,
-    @Req() req: Request,
-  ): Promise<RestaurantResultDto[]> {
-    // Được lấy từ GuestSessionMiddleware (giống cách scheduler làm)
-    const guestId = (req as any).guest_id;
+    @Req() req: GuestRequest,
+  ): Promise<GroupRecommendationResponseDto> {
+    const guestId = req.guest_id;
+    if (!guestId) {
+      throw new BadRequestException(
+        'Missing guest session. Please retry with cookies enabled.',
+      );
+    }
 
     return this.engineService.getGroupRecommendations(dto, guestId);
   }

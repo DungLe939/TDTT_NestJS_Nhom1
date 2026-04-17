@@ -1,13 +1,3 @@
-/**
- * Group Recommendation DTOs
- *
- * Validate input từ API endpoint POST /restaurants/recommend/group.
- * Firebase Firestore schema:
- *   users: {uid, name, taste_vector: [], budget, allergies: [], ...}
- *
- * @module restaurants/dto
- */
-
 import {
   IsArray,
   IsNotEmpty,
@@ -23,37 +13,36 @@ import {
 import { Type } from 'class-transformer';
 
 /**
- * DTO cho sở thích của một user trong nhóm.
- * Mapping Firebase: users collection.
+ * Sở thích và ràng buộc của một thành viên trong nhóm.
  */
 export class UserPreferenceDto {
-  /**
-   * Taste vector — 8 chiều, giá trị [0.0, 1.0].
-   * [cay, ngot, man, chua, beo, thanh_dam, hai_san, chay]
-   */
+  /** ID thành viên để trả về điểm chi tiết theo từng người. */
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
+  /** Vector khẩu vị 8 chiều, cùng không gian với nhà hàng. */
   @IsArray()
   @IsNumber({}, { each: true })
-  @ArrayMinSize(1)
-  taste_vector!: number[];
+  @ArrayMinSize(8)
+  @ArrayMaxSize(8)
+  tasteVector!: number[];
 
-  /** Ngân sách tối đa (VND) — Constraint Feature */
+  /** Ngân sách tối đa (VND). */
   @IsNumber()
   @Min(1)
   budget!: number;
 
-  /** Danh sách dị ứng / kiêng cữ */
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   allergies?: string[];
 
-  /** Khoảng cách tối đa chấp nhận (km) */
   @IsOptional()
   @IsNumber()
   @Min(0)
   distance_tolerance?: number;
 
-  /** Ngưỡng rating tối thiểu (0–5) */
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -61,19 +50,13 @@ export class UserPreferenceDto {
   min_rating?: number;
 }
 
-/**
- * DTO cho trọng số aggregation — tuỳ chọn.
- * Default: avgWeight=0.7, minWeight=0.3
- */
 export class AggregationWeightsDto {
-  /** Trọng số Average Score (default: 0.7) */
   @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(1)
   avgWeight?: number;
 
-  /** Trọng số Least Misery / Min Score (default: 0.3) */
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -81,9 +64,6 @@ export class AggregationWeightsDto {
   minWeight?: number;
 }
 
-/**
- * DTO cho toạ độ GPS hiện tại.
- */
 export class LocationDto {
   @IsNumber()
   @IsNotEmpty()
@@ -94,50 +74,57 @@ export class LocationDto {
   lng!: number;
 }
 
-/**
- * DTO tổng cho request gợi ý nhà hàng nhóm.
- */
 export class GroupRecommendationDto {
-  /** Danh sách người dùng trong nhóm (>= 1 người) */
+  /** Danh sách thành viên tham gia gợi ý nhóm. */
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => UserPreferenceDto)
   @ArrayMinSize(1)
-  @ArrayMaxSize(15, { message: 'Kích thước nhóm tối đa là 15 người để đảm bảo hiệu năng' })
-  groupUsers!: UserPreferenceDto[];
+  @ArrayMaxSize(15)
+  users!: UserPreferenceDto[];
 
-  /** Toạ độ hiện tại của nhóm */
+  /** Vị trí hiện tại để tính khoảng cách tới nhà hàng. */
   @ValidateNested()
   @Type(() => LocationDto)
   @IsNotEmpty()
   currentLocation!: LocationDto;
 
-  /** Trọng số aggregation (tuỳ chọn) */
+  /** Trọng số tùy chỉnh cho chiến lược tổng hợp điểm nhóm. */
   @IsOptional()
   @ValidateNested()
   @Type(() => AggregationWeightsDto)
   aggregationWeights?: AggregationWeightsDto;
 }
 
-/**
- * DTO kết quả — shape mỗi nhà hàng trong top K.
- */
-export class RestaurantResultDto {
-  /** Tên nhà hàng */
+/** Điểm tương đồng của một thành viên cho một nhà hàng. */
+export class UserScoreDetailDto {
+  userId!: string;
+  similarity!: number;
+}
+
+/** Thông tin nhà hàng hiển thị trong kết quả gợi ý. */
+export class RestaurantInfoDto {
+  id!: string;
   name!: string;
-
-  /**
-   * Phân khúc giá (1-3).
-   * 1: Rẻ, 2: Trung bình, 3: Sang trọng
-   */
-  priceRange!: number;
-
-  /** Khoảng cách (km), làm tròn 2 chữ số */
-  distance!: number;
-
-  /** Đánh giá (0–5) */
+  price!: number;
   rating!: number;
+  location!: { lat: number; lng: number };
+  distance!: number;
+  tags?: string[];
+}
 
-  /** Điểm phù hợp tổng hợp (0–1), làm tròn 2 chữ số */
-  matchedScore!: number;
+/** Kết quả chấm điểm cho một nhà hàng. */
+export class ScoreResultDto {
+  restaurant!: RestaurantInfoDto;
+  finalScore!: number;
+  avgSimilarity!: number;
+  minSimilarity!: number;
+  userScores!: UserScoreDetailDto[];
+}
+
+/** Payload trả về từ API gợi ý nhóm. */
+export class GroupRecommendationResponseDto {
+  totalCandidates!: number;
+  filteredCount!: number;
+  recommendations!: ScoreResultDto[];
 }

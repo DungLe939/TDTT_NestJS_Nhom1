@@ -54,9 +54,9 @@ describe('aggregateGroupScore', () => {
 describe('getGroupBudget', () => {
   it('should return the minimum budget (Least Misery)', () => {
     const users: IUser[] = [
-      { taste_vector: [0], budget: 100000 },
-      { taste_vector: [0], budget: 200000 },
-      { taste_vector: [0], budget: 50000 },
+      { tasteVector: [0], budget: 100000 },
+      { tasteVector: [0], budget: 200000 },
+      { tasteVector: [0], budget: 50000 },
     ];
     expect(getGroupBudget(users)).toBe(50000);
   });
@@ -69,9 +69,9 @@ describe('getGroupBudget', () => {
 describe('getGroupAllergies', () => {
   it('should union all allergies from group', () => {
     const users: IUser[] = [
-      { taste_vector: [], budget: 100000, allergies: ['tom', 'sua'] },
-      { taste_vector: [], budget: 100000, allergies: ['dau_phong'] },
-      { taste_vector: [], budget: 100000 },
+      { tasteVector: [], budget: 100000, allergies: ['tom', 'sua'] },
+      { tasteVector: [], budget: 100000, allergies: ['dau_phong'] },
+      { tasteVector: [], budget: 100000 },
     ];
     const result = getGroupAllergies(users);
     expect(result.size).toBe(3);
@@ -81,9 +81,7 @@ describe('getGroupAllergies', () => {
   });
 
   it('should return empty set for group with no allergies', () => {
-    const users: IUser[] = [
-      { taste_vector: [], budget: 100000 },
-    ];
+    const users: IUser[] = [{ tasteVector: [], budget: 100000 }];
     expect(getGroupAllergies(users).size).toBe(0);
   });
 });
@@ -91,14 +89,20 @@ describe('getGroupAllergies', () => {
 describe('computeIndividualSimilarities', () => {
   it('should return similarity scores for each user', () => {
     const users: IUser[] = [
-      { taste_vector: [0.9, 0.1, 0.8, 0.1, 0.5, 0.2, 0.0, 0.0], budget: 100000 },
-      { taste_vector: [0.0, 0.3, 0.1, 0.1, 0.0, 0.9, 0.0, 1.0], budget: 100000 },
+      {
+        tasteVector: [0.9, 0.1, 0.8, 0.1, 0.5, 0.2, 0.0, 0.0],
+        budget: 100000,
+      },
+      {
+        tasteVector: [0.0, 0.3, 0.1, 0.1, 0.0, 0.9, 0.0, 1.0],
+        budget: 100000,
+      },
     ];
     const restaurant: IRestaurant = {
       name: 'Test',
       location: { lat: 10.77, lng: 106.69 },
       priceRange: 2,
-      taste_vector: [0.8, 0.1, 0.7, 0.2, 0.4, 0.3, 0.0, 0.0],
+      tasteVector: [0.8, 0.1, 0.7, 0.2, 0.4, 0.3, 0.0, 0.0],
       rating: 4.0,
     };
 
@@ -112,17 +116,17 @@ describe('computeIndividualSimilarities', () => {
 describe('getGroupDistanceTolerance', () => {
   it('should return the minimum distance tolerance from the group', () => {
     const users: IUser[] = [
-      { taste_vector: [], budget: 100000, distance_tolerance: 5 },
-      { taste_vector: [], budget: 100000, distance_tolerance: 2 },
-      { taste_vector: [], budget: 100000, distance_tolerance: 10 }
+      { tasteVector: [], budget: 100000, distance_tolerance: 5 },
+      { tasteVector: [], budget: 100000, distance_tolerance: 2 },
+      { tasteVector: [], budget: 100000, distance_tolerance: 10 },
     ];
     expect(getGroupDistanceTolerance(users, 5)).toBe(2);
   });
 
   it('should return default distance if group members have no tolerance setting', () => {
     const users: IUser[] = [
-      { taste_vector: [], budget: 100000 },
-      { taste_vector: [], budget: 100000 }
+      { tasteVector: [], budget: 100000 },
+      { tasteVector: [], budget: 100000 },
     ];
     expect(getGroupDistanceTolerance(users, 5)).toBe(5);
   });
@@ -135,9 +139,9 @@ describe('getGroupDistanceTolerance', () => {
 describe('getGroupMinRating', () => {
   it('should return the maximum min_rating expected by the group (Constraint Aggregation)', () => {
     const users: IUser[] = [
-      { taste_vector: [], budget: 100000, min_rating: 4.0 }, 
-      { taste_vector: [], budget: 100000, min_rating: 4.5 },
-      { taste_vector: [], budget: 100000, min_rating: 3.5 }  
+      { tasteVector: [], budget: 100000, min_rating: 4.0 },
+      { tasteVector: [], budget: 100000, min_rating: 4.5 },
+      { tasteVector: [], budget: 100000, min_rating: 3.5 },
     ];
     expect(getGroupMinRating(users)).toBe(4.5);
   });

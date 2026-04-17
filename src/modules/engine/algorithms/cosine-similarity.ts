@@ -29,10 +29,7 @@
  * @param vectorB - Vector thứ hai (vd: restaurant taste_vector)
  * @returns Độ tương đồng trong khoảng [-1, 1]
  */
-export function cosineSimilarity(
-  vectorA: number[],
-  vectorB: number[],
-): number {
+export function cosineSimilarity(vectorA: number[], vectorB: number[]): number {
   // Edge case: vector rỗng hoặc khác kích thước
   if (
     vectorA.length === 0 ||

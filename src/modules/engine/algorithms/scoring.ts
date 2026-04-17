@@ -25,14 +25,14 @@ export const TASTE_VECTOR_SIZE = 8;
  * User và restaurant phải cùng thứ tự chiều này.
  */
 export const TASTE_DIMENSIONS = [
-  'cay',        // [0] Spicy
-  'ngot',       // [1] Sweet
-  'man',        // [2] Savory/Salty
-  'chua',       // [3] Sour
-  'beo',        // [4] Rich/Fatty
-  'thanh_dam',  // [5] Light/Fresh
-  'hai_san',    // [6] Seafood
-  'chay',       // [7] Vegetarian
+  'cay', // [0] Spicy
+  'ngot', // [1] Sweet
+  'man', // [2] Savory/Salty
+  'chua', // [3] Sour
+  'beo', // [4] Rich/Fatty
+  'thanh_dam', // [5] Light/Fresh
+  'hai_san', // [6] Seafood
+  'chay', // [7] Vegetarian
 ] as const;
 
 /**

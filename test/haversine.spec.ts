@@ -13,7 +13,7 @@ describe('calculateDistance (Haversine)', () => {
   });
 
   it('should calculate longer distance between Q1 and Bình Thạnh', () => {
-    const distance = calculateDistance(10.7769, 106.6952, 10.8010, 106.7120);
+    const distance = calculateDistance(10.7769, 106.6952, 10.801, 106.712);
     expect(distance).toBeGreaterThan(2);
     expect(distance).toBeLessThan(5);
   });

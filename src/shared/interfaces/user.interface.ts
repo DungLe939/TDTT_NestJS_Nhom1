@@ -13,6 +13,9 @@
  */
 
 export interface IUser {
+  /** ID định danh người dùng trong nhóm — dùng cho response mapping */
+  userId?: string;
+
   /**
    * Vector sở thích ẩm thực — giá trị [0.0, 1.0] cho mỗi chiều.
    *
@@ -28,7 +31,7 @@ export interface IUser {
    *
    * User và restaurant phải cùng không gian vector để tính Cosine Similarity.
    */
-  taste_vector: number[];
+  tasteVector: number[];
 
   /** Ngân sách tối đa cho một bữa ăn (VND) — Constraint Feature */
   budget: number;

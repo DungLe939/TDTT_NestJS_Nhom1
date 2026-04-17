@@ -67,12 +67,14 @@ export class RestaurantsService {
     if (snapshot.empty) {
       this.logger.warn(
         `Không tìm thấy nhà hàng nào cho guest_id: ${guestId}. ` +
-        'Hãy gọi endpoint /schedule/searchLocation trước để quét dữ liệu nhà hàng.',
+          'Hãy gọi endpoint /schedule/searchLocation trước để quét dữ liệu nhà hàng.',
       );
       return [];
     }
 
-    this.logger.log(`Đã tìm thấy ${snapshot.size} nhà hàng cho guest_id: ${guestId}`);
+    this.logger.log(
+      `Đã tìm thấy ${snapshot.size} nhà hàng cho guest_id: ${guestId}`,
+    );
 
     const restaurants: IRestaurant[] = snapshot.docs.map((doc) => {
       const data = doc.data();
@@ -94,7 +96,7 @@ export class RestaurantsService {
         name: data.name,
         location: { lat, lng },
         priceRange: data.priceRange ?? 2,
-        taste_vector: data.taste_vector ?? [],
+        tasteVector: data.taste_vector ?? [],
         rating: data.rating ?? 4.0,
         menu_ingredients: data.menu_ingredients,
         tags: data.tags,
@@ -109,4 +111,3 @@ export class RestaurantsService {
     return restaurants;
   }
 }
-

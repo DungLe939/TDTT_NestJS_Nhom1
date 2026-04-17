@@ -13,7 +13,7 @@
 export interface IRestaurant {
   /** Firestore document ID */
   id?: string;
-  
+
   /** Tên nhà hàng */
   name: string;
 
@@ -38,7 +38,7 @@ export interface IRestaurant {
    * Ví dụ: Phở → [0.3, 0.1, 0.7, 0.2, 0.4, 0.5, 0.0, 0.0]
    *   (mặn vừa, thanh đạm, không hải sản, không chay)
    */
-  taste_vector: number[];
+  tasteVector: number[];
 
   /** Đánh giá cộng đồng (0–5) */
   rating: number;
