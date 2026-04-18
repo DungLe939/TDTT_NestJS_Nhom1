@@ -1,5 +1,8 @@
 export type RewardType = 'voucher' | 'badge' | 'points';
-export type CuisineType = 'japanese' | 'vietnamese' | 'italian' | 'korean' | 'chinese' | 'thai' | 'french' | 'indian';
+export type CuisineType =
+    | 'japanese' | 'vietnamese' | 'italian' | 'korean'
+    | 'chinese' | 'thai' | 'french' | 'indian'
+    | 'cafe' | 'street-food' | 'fine-dining';
 
 // Các hành động từ user (khi dùng Blog, feature 1, 2, 3, 4) sẽ được gửi đến AchievementsModule
 export type ActivityEventType =
@@ -11,12 +14,23 @@ export type ActivityEventType =
     | 'SCHEDULE_COMPLETED'
     | 'GROUP_TASTE_USED';
 
-// payload được gửi từ các feature khác
+// payload được gửi từ các feature khác — typed thay vì any
+export interface ActivityEventPayload {
+    restaurantId?: string;
+    cuisineType?: CuisineType;
+    postId?: string;
+    tags?: string[];
+    scannedFoodId?: string;
+    translatedMenuId?: string;
+    completedScheduleId?: string;
+    groupSessionId?: string;
+}
+
 export interface ActivityEvent {
     userId: string;
     type: ActivityEventType;
     occurredAt: Date;
-    payload: any; // e.g. { cuisineType: "japanese" }
+    payload: ActivityEventPayload;
 }
 
 // achievement condition: hành động mà user cần làm để nhận reward
@@ -59,5 +73,26 @@ export interface ProgressTracker {
     progressPercent: number;
     isCompleted: boolean;
     completedAt?: Date;
+}
+
+// Response interface cho API: achievement kèm tiến độ của user
+export interface AchievementWithProgress extends Achievement {
+    progress: ProgressTracker;
+}
+
+// Record phần thưởng đã cấp cho user
+export interface UserReward {
+    id?: string;
+    userId: string;
+    rewardId: string;
+    achievementId: string;
+    issuedAt: Date;
+    isUsed: boolean;
+    expiresAt?: Date;
+}
+
+// Response interface cho API: user reward kèm chi tiết reward
+export interface UserRewardResolved extends UserReward {
+    reward: Reward | null;
 }
 

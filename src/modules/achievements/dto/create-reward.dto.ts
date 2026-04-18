@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsDate, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsOptional, IsDate, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { RewardType } from '../interfaces/achievement.interface';
 
@@ -8,7 +8,7 @@ import type { RewardType } from '../interfaces/achievement.interface';
 
 export class CreateRewardDto {
     @IsNotEmpty()
-    @IsString()
+    @IsIn(['voucher', 'badge', 'points'])
     type: RewardType;
 
     @IsNotEmpty()

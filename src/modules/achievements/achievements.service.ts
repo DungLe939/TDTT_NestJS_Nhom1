@@ -2,10 +2,14 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from "@nes
 import { db } from '../../providers/firebase.provider';
 import {
     Achievement,
+    AchievementWithProgress,
     ActivityEvent,
     Reward,
     AchievementCondition,
-    RewardType
+    RewardType,
+    ProgressTracker,
+    UserReward,
+    UserRewardResolved,
 } from './interfaces/achievement.interface';
 import { ProgressTrackerService } from './progress-tracker.service';
 
@@ -15,6 +19,11 @@ import { ProgressTrackerService } from './progress-tracker.service';
 @Injectable()
 export class AchievementService {
     private readonly logger = new Logger(AchievementService.name);
+
+    // Cache cho active achievements — tránh query Firestore mỗi lần có event
+    private cachedAchievements: Achievement[] | null = null;
+    private cacheExpiry = 0;
+    private readonly CACHE_TTL = 60_000; // 1 phút
 
     constructor(
         private readonly progressTrackerService: ProgressTrackerService
@@ -46,7 +55,15 @@ export class AchievementService {
         // ghi su kien vao log
         this.logger.log(`Received event ${event.type} for user ${event.userId}`);
 
-        // lay cac mission dang dien ra
+        // Persist event vào activity_logs collection (cần cho recountFromLog)
+        await db.collection('activity_logs').add({
+            userId: event.userId,
+            type: event.type,
+            occurredAt: event.occurredAt,
+            payload: event.payload,
+        });
+
+        // lay cac mission dang dien ra (có cache)
         const activeAchievements = await this.getActiveAchievements();
 
         // kiem tra xem su kien co trigger mot active mission nao khong
@@ -58,14 +75,23 @@ export class AchievementService {
     }
 
     /** 
-     * Lấy các mission đang diễn ra từ database
+     * Lấy các mission đang diễn ra từ database (có cache để giảm Firestore reads)
      * */
     private async getActiveAchievements(): Promise<Achievement[]> {
+        // Trả về cache nếu còn hạn
+        if (this.cachedAchievements && Date.now() < this.cacheExpiry) {
+            return this.cachedAchievements;
+        }
+
         const snapshot = await db.collection('achievements')
             .where('isActive', '==', true)
             .get();
         if (snapshot.empty) return [];
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Achievement[];
+
+        this.cachedAchievements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Achievement[];
+        this.cacheExpiry = Date.now() + this.CACHE_TTL;
+
+        return this.cachedAchievements;
     }
 
     /**
@@ -142,15 +168,16 @@ export class AchievementService {
 
     /**
      * Tạo một UserReward record khi một achievement hoàn thành.
-     * Idempotent — sẽ không cấp một phần thưởng trùng lặp cho cùng một cặp (userId, achievementId).
+     * Idempotent — dùng deterministic document ID để tránh duplicate reward.
      */
     private async issueReward(userId: string, achievementId: string, rewardId: string): Promise<void> {
-        // kiểm tra xem user đã nhận reward này chưa
-        const existing = await db.collection('user_rewards')
-            .where('userId', '==', userId)
-            .where('achievementId', '==', achievementId)
-            .get();
-        if (!existing.empty) return;
+        // Dùng deterministic doc ID thay vì auto-gen → ngăn race condition duplicate
+        const rewardDocId = `${userId}_${achievementId}`;
+        const docRef = db.collection('user_rewards').doc(rewardDocId);
+        const existingDoc = await docRef.get();
+
+        // Nếu đã tồn tại, không cấp lại
+        if (existingDoc.exists) return;
 
         this.logger.log(`Issuing reward ${rewardId} to user ${userId} for achievement ${achievementId}`);
 
@@ -164,7 +191,7 @@ export class AchievementService {
             }
         }
 
-        const userReward: any = {
+        const userReward: UserReward = {
             userId,
             rewardId,
             achievementId,
@@ -176,11 +203,11 @@ export class AchievementService {
             userReward.expiresAt = expiresAt;
         }
 
-        // ghi reward vào database cho user
-        const docRef = await db.collection('user_rewards').add(userReward);
+        // ghi reward vào database cho user (dùng set thay vì add → idempotent)
+        await docRef.set(userReward);
 
         // thông báo cho user
-        await this.notifyUser(userId, achievementId, docRef.id);
+        await this.notifyUser(userId, achievementId, rewardDocId);
     }
 
     /**
@@ -199,10 +226,10 @@ export class AchievementService {
     // =========================================================================
 
     /**
-     * Trả về tất cả các achievement cùng với tiến độ hiện tại của người dùng.
+     * Trả về tất cả các achievement cùng với tiến độ hiện tại của người dùng.
      * Dùng cho Mission Screen.
      */
-    async getAchievementsForUser(userId: string): Promise<any[]> {
+    async getAchievementsForUser(userId: string): Promise<AchievementWithProgress[]> {
         const snapshot = await db.collection('achievements').get();
         if (snapshot.empty) return [];
 
@@ -226,9 +253,9 @@ export class AchievementService {
     }
 
     /**
-     * Trả về một achievement với tiến độ của người dùng.
+     * Trả về một achievement với tiến độ của người dùng.
      */
-    async getAchievementDetails(achievementId: string, userId: string): Promise<any> {
+    async getAchievementDetails(achievementId: string, userId: string): Promise<AchievementWithProgress> {
         const doc = await db.collection('achievements').doc(achievementId).get();
         if (!doc.exists) {
             throw new NotFoundException(`Achievement ${achievementId} not found`);
@@ -250,13 +277,13 @@ export class AchievementService {
     }
 
     /**
-     * Trả về tất cả phần thưởng đã nhận bởi user với đầy đủ chi tiết reward.
+     * Trả về tất cả phần thưởng đã nhận bởi user với đầy đủ chi tiết reward.
      */
-    async getUserRewards(userId: string): Promise<Reward[]> {
+    async getUserRewards(userId: string): Promise<UserRewardResolved[]> {
         const snapshot = await db.collection('user_rewards').where('userId', '==', userId).get();
         if (snapshot.empty) return [];
 
-        const userRewards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+        const userRewards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserReward));
 
         const rewardDocs = await Promise.all(
             userRewards.map(ur => db.collection('rewards').doc(ur.rewardId).get())
@@ -264,7 +291,7 @@ export class AchievementService {
 
         return userRewards.map((ur, i) => ({
             ...ur,
-            reward: rewardDocs[i].exists ? { id: rewardDocs[i].id, ...rewardDocs[i].data() } : null,
+            reward: rewardDocs[i].exists ? { id: rewardDocs[i].id, ...rewardDocs[i].data() } as Reward : null,
         }));
     }
 
@@ -345,6 +372,10 @@ export class AchievementService {
             },
         };
         const docRef = await db.collection('achievements').add(achievement);
+
+        // Invalidate cache khi có achievement mới
+        this.cachedAchievements = null;
+
         return { id: docRef.id, ...achievement } as Achievement;
     }
 
@@ -357,7 +388,7 @@ export class AchievementService {
         description: string;
         expiresAt?: Date;
     }): Promise<Reward> {
-        const reward: any = {
+        const reward: Partial<Reward> = {
             type: dto.type,
             value: dto.value,
             description: dto.description,
@@ -369,4 +400,3 @@ export class AchievementService {
         return { id: docRef.id, ...reward } as Reward;
     }
 }
-

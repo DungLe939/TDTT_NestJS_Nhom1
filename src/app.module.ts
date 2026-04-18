@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config'; // Thư viện hỗ trợ đọc cấu hình từ file .env
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
+import { BlogModule } from './modules/blog/blog.module';
 
 /**
  * AppModule là Module gốc của ứng dụng.
@@ -28,6 +29,11 @@ import { AchievementsModule } from './modules/achievements/achievements.module';
      * AchievementModule: Module xử lý logic về thành tích và phần thưởng.
      */
     AchievementsModule,
+
+    /**
+     * BlogModule: Module thao tác tạo bài và kết nối hệ thống achievements.
+     */
+    BlogModule,
   ],
   controllers: [AppController], // Khai báo các Controller của module này
   providers: [AppService], // Khai báo các Service (Business Logic) của module này

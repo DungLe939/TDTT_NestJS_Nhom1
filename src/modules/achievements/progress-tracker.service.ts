@@ -62,7 +62,14 @@ export class ProgressTrackerService {
 
         await db.collection(this.collectionName).doc(trackerId).update(updateData);
 
-        const updatedDoc = await db.collection(this.collectionName).doc(trackerId).get();
-        return { id: updatedDoc.id, ...updatedDoc.data() } as ProgressTracker;
+        // Lấy document hiện tại để merge với updateData (thay vì đọc lại toàn bộ)
+        const existingDoc = await db.collection(this.collectionName).doc(trackerId).get();
+        const existingData = existingDoc.data() || {};
+
+        return {
+            ...existingData,
+            ...updateData,
+            id: trackerId,
+        } as ProgressTracker;
     }
 }
