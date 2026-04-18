@@ -9,6 +9,7 @@ import { RawFilterHelper } from './utils/raw-filter';
 import { ScoringHelper } from './utils/scoring';
 import { GeminiScoringHelper } from './utils/gemini-scoring';
 import { GeminiGenerateScheduleHelper } from './utils/gemini-generate-schelude';
+import { PlanCacheHelper } from './utils/plan-cache';
 
 @Module({
   controllers: [SchedulerController],
@@ -20,6 +21,7 @@ import { GeminiGenerateScheduleHelper } from './utils/gemini-generate-schelude';
     ScoringHelper,
     GeminiScoringHelper,
     GeminiGenerateScheduleHelper,
+    PlanCacheHelper
   ],
 })
 export class SchedulerModule implements NestModule {

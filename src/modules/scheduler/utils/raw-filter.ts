@@ -26,13 +26,10 @@ export class RawFilterHelper {
   ): Promise<any[]> {
     /**
      * 1. Truy vấn Firestore:
-     * Lọc các quán có guest_id phù hợp và nằm trong khoảng giá cho phép.
-     * Khi lưu nhà hàng vào DB, có lưu kèm guest_id nên có thể truy vấn dễ dàng
+     * Lọc các quán có guest_id phù hợp.
      */
-    const snapshot = await db
-      .collection('restaurants')
+    const snapshot = await db.collection('restaurants')
       .where('guest_id', '==', guest_id)
-      .where('priceRange', '<=', globalMaxPriceRange)
       .get();
 
     if (snapshot.empty) {
@@ -41,47 +38,41 @@ export class RawFilterHelper {
 
     /**
      * 2. Tính toán bán kính tìm kiếm:
-     * Càng đi nhiều ngày, phạm vi tìm kiếm quán ăn càng được mở rộng.
-     * Cơ sở: 10km + 2.5km cho mỗi ngày du lịch thêm.
      */
-    const maxRadius = 10000 + travelDays * 2500;
-
-    // Giới hạn số lượng kết quả lấy ra để đảm bảo hiệu năng
-    // đi thêm 1 ngày thì tăng thêm 40 nhà hàng => đảm bảo không có quá ít lựa chọn
+    const maxRadius = 10000 + (travelDays * 2500);
     const limitCount = Math.max(100, travelDays * 40);
 
     /**
      * 3. Lọc sơ bộ:
-     * Duyệt qua danh sách quán thu được
      */
     const rawRestaurants = snapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }) as any)
-      .filter((restaurant) => {
+      .map(doc => ({ id: doc.id, ...doc.data() } as any))
+      .filter(restaurant => {
+        // Lọc theo mức giá (Thực hiện lọc tại Server thay vì Firestore để không cần tạo Index)
+        if (restaurant.priceRange > globalMaxPriceRange) return false;
+
         // Kiểm tra Rating có đạt chuẩn không (>= 2.5)
         const isGoodRating = (restaurant.rating || 4.0) >= 2.5;
 
         // Tính toán khoảng cách thực tế từ vị trí hiện tại đến nhà hàng
-        // Ở đây dùng thuật toán harvesine
         const dist = calculateDistance(
           currentLocation.lat,
           currentLocation.lng,
-          restaurant.location.coordinates[1], // Vĩ độ (Latitude)
-          restaurant.location.coordinates[0], // Kinh độ (Longitude)
+          restaurant.location.coordinates[1], // Vĩ độ
+          restaurant.location.coordinates[0]  // Kinh độ
         );
 
-        // Gắn thêm thông tin khoảng cách để dùng cho việc sắp xếp
         restaurant.distance = dist;
 
-        // Trả về true nếu thỏa mãn cả hai điều kiện: đánh giá tốt và trong bán kính cho phép
         return isGoodRating && dist <= maxRadius;
       })
       /**
-       * 4. Sắp xếp theo khoảng cách:
-       * Ưu tiên các quán gần vị trí hiện tại nhất.
+       * 4. Sắp xếp theo khoảng cách
        */
       .sort((a, b) => a.distance - b.distance)
       .slice(0, limitCount);
 
     return rawRestaurants;
+  }
   }
 }

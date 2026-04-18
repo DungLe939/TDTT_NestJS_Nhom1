@@ -6,6 +6,8 @@ import axios from 'axios';
 import { ClusteringHelper } from './algorithms/k-means';
 import { ScoringHelper } from './utils/scoring';
 import { RawFilterHelper } from './utils/raw-filter';
+import { PlanCacheHelper } from './utils/plan-cache';
+import { calculateDistance } from './algorithms/haversine';
 
 @Injectable()
 export class SchedulerService {
@@ -13,6 +15,7 @@ export class SchedulerService {
     private readonly rawFilterHelper: RawFilterHelper,
     private readonly clusteringHelper: ClusteringHelper,
     private readonly scoringHelper: ScoringHelper,
+    private readonly planCacheHelper: PlanCacheHelper
   ) {}
 
   // Hàm lấy tọa độ từ Keyword
@@ -38,6 +41,30 @@ export class SchedulerService {
     }
   }
 
+  // Hàm lấy danh sách gợi ý địa điểm (Autocomplete)
+  async getLocationSuggestions(keyword: string) {
+    try {
+      // Gọi api tới openstreetmap với giới hạn 5 kết quả tại VN
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(keyword)}&format=json&limit=5&countrycodes=vn`;
+      const response = await axios.get(url, {
+        headers: { 'User-Agent': 'Smart-Tourism-App-HCMUS' }
+      });
+
+      const data = response.data;
+      if (data && data.length > 0) {
+        return data.map((item: any) => ({
+          name: item.display_name,
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon)
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error("Lỗi Autocomplete:", error);
+      return [];
+    }
+  }
+
   //Hàm quét dữ liệu các quán ăn và lưu vào database
   // được gọi từ endpoint: /schedule/searchLocation
   async processSearchLocation(keyword: string, guestId: string) {
@@ -49,8 +76,7 @@ export class SchedulerService {
 
     // Xóa dữ liệu cũ của guest này trong Firestore => tránh phình to DB
     const batch = db.batch();
-    const oldDocs = await db
-      .collection('restaurants')
+    const oldDocs = await db.collection('restaurants')
       .where('guest_id', '==', guestId)
       .get();
 
@@ -76,7 +102,7 @@ export class SchedulerService {
     };
   }
 
-  //Hàm tạo lịch trình các quán ăn phù hợp
+  //Hàm tạo lịch trình các quán ăn phù hợp (Bulk version)
   // Được gọi từ endpoint: /schedule/generatePlan
   async createTravelPlan(body: any, guest_id: string) {
     const {
@@ -196,6 +222,99 @@ export class SchedulerService {
     };
   }
 
+  /**
+   * preparePlanData: Bước chuẩn bị (Raw Filter + Clustering) trong luồng Streaming.
+   * Phương thức này lọc dữ liệu từ Firestore và phân cụm quán ăn, sau đó lưu kết quả
+   * vào RAM Cache để các bước generateDayPlan tiếp theo có thể truy xuất ngay lập tức.
+   */
+  async preparePlanData(body: any, guestId: string) {
+    const { budget, currentLocation, preferences, travelDays } = body;
+    console.log(`[PreparePlanData] Payload:`, { budget, travelDays, guestId });
+
+    if (!currentLocation || !currentLocation.lat || !currentLocation.lng) {
+      throw new Error("Dữ liệu vị trí (currentLocation) không hợp lệ hoặc bị thiếu.");
+    }
+
+    // Tính toán cấu hình ngân sách
+    const dailyBudget = budget / travelDays;
+    const mealBudgetConfig = {
+      breakfast: dailyBudget * 0.2,
+      lunch: dailyBudget * 0.3,
+      dinner: dailyBudget * 0.5
+    };
+
+    let globalMaxPriceRange = 2;
+    if (mealBudgetConfig.dinner > 200000) globalMaxPriceRange = 3;
+
+    console.log(`[PreparePlanData] Đang gọi RawFilterHelper...`);
+    // Lọc thô dữ liệu từ Firestore (Theo ý bạn: Vẫn dùng DB để quét quán ban đầu)
+    const rawRestaurants = await this.rawFilterHelper.rawData(currentLocation, globalMaxPriceRange, guestId, travelDays);
+
+    if (!rawRestaurants || rawRestaurants.length === 0) {
+      console.log(`[PreparePlanData] Không tìm thấy quán nào.`);
+      return { success: false, message: 'Không tìm thấy quán ăn phù hợp tại khu vực này.' };
+    }
+
+    console.log(`[PreparePlanData] Tìm thấy ${rawRestaurants.length} quán. Đang phân cụm...`);
+    // Thực hiện phân cụm (Clustering) quán ăn theo số ngày đi
+    const orderedPlan = this.clusteringHelper.clusteringStep(rawRestaurants, travelDays, currentLocation);
+
+    console.log(`[PreparePlanData] Phân cụm xong. Đang lưu vào Cloud Cache...`);
+    // LƯU KẾT QUẢ VÀO CLOUD CACHE: Để các lượt gọi sau không phải tính lại bước này
+    await this.planCacheHelper.set(guestId, {
+      rawRestaurants,
+      orderedPlan,
+      mealBudgetConfig,
+      preferences,
+      usedCategories: []
+    });
+
+    console.log(`[PreparePlanData] Hoàn tất.`);
+    return {
+      success: true,
+      totalDays: travelDays,
+      info: { totalBudget: budget, suggestedMealBudget: mealBudgetConfig },
+      count: rawRestaurants.length
+    };
+  }
+
+  /**
+   * createSingleDayPlan: Tạo lịch trình cho một ngày cụ thể (Dùng cho Streaming).
+   * Frontend gọi hàm này lặp lại cho từng ngày (0, 1, 2...) để hiển thị kết quả dần dần.
+   */
+  async createSingleDayPlan(guestId: string, dayIndex: number) {
+    const cache = await this.planCacheHelper.get(guestId);
+    if (!cache) {
+      throw new Error("Lỗi: Phiên chuẩn bị dữ liệu đã hết hạn hoặc không tồn tại. Vui lòng thử lại.");
+    }
+
+    const dayPlan = cache.orderedPlan[dayIndex];
+    if (!dayPlan) {
+      throw new Error(`Lỗi: Không tìm thấy dữ liệu cho ngày thứ ${dayIndex + 1}.`);
+    }
+
+    // Gọi logic ScoringHelper kết hợp với AI (Gemini) để chọn quán cho ngày này
+    const result = await this.scoringHelper.generateSingleDayPlan(
+      dayPlan,
+      cache.mealBudgetConfig,
+      cache.preferences,
+      cache.usedCategories
+    );
+
+    // Cập nhật danh sách loại món đã ăn để ngày hôm sau AI không chọn trùng
+    await this.planCacheHelper.updateUsedCategories(guestId, result.newUsedCategories);
+
+    // LƯU KẾT QUẢ ĐÃ CHẤM ĐIỂM VÀO CACHE: Để phục vụ tính năng "Đổi món" (Swap Meal)
+    // Việc này giúp tránh việc phải gọi lại AI Gemini cực kỳ tốn kém và chậm chạp.
+    await this.planCacheHelper.saveDayScores(guestId, dayIndex, result.scoredRestaurants);
+
+    return {
+      day: dayIndex + 1,
+      meals: result.dayResult.meals,
+      snackCandidates: result.snackCandidates
+    };
+  }
+
   //Hàm tạo đường đi ngắn nhất giữa 2 điểm
   // Gọi từ endpoint: /schedule/route
   async getShortestPath(
@@ -226,5 +345,69 @@ export class SchedulerService {
       console.error('Lỗi OSRM Routing:', error);
       return null;
     }
+  }
+
+  /**
+   * getSwapOptions: Lấy danh sách các món ăn thay thế cho một bữa ăn cụ thể.
+   */
+  async getSwapOptions(guestId: string, dayIndex: number, mealType: string, userLat?: number, userLng?: number) {
+    const cache = await this.planCacheHelper.get(guestId);
+    if (!cache) return { success: false, message: "Session expired" };
+
+    const scoredRestaurants = await this.planCacheHelper.getDayScores(guestId, dayIndex);
+    if (!scoredRestaurants) return { success: false, message: "Chưa có dữ liệu chấm điểm cho ngày này. Vui lòng tạo lịch trình trước." };
+
+    const sortedRestaurants = [...scoredRestaurants].sort((a, b) => {
+      const scoreA = typeof a.scores?.[mealType] === 'object' ? a.scores[mealType].score : (a.scores?.[mealType] ?? 0);
+      const scoreB = typeof b.scores?.[mealType] === 'object' ? b.scores[mealType].score : (b.scores?.[mealType] ?? 0);
+      return scoreB - scoreA;
+    }).slice(0, 20);
+
+    const refLat = userLat || cache.orderedPlan[dayIndex]?.cluster?.centroid[1];
+    const refLng = userLng || cache.orderedPlan[dayIndex]?.cluster?.centroid[0];
+
+    const dishMap = new Map<string, any>();
+
+    sortedRestaurants.forEach(res => {
+      const resScore = typeof res.scores?.[mealType] === 'object' ? res.scores[mealType].score : (res.scores?.[mealType] ?? 0);
+      const dist = (refLat && refLng)
+        ? calculateDistance(refLat, refLng, res.location.coordinates[1], res.location.coordinates[0])
+        : 0;
+
+      res.menu?.forEach((item: any) => {
+        const existing = dishMap.get(item.name);
+
+        const shouldReplace = !existing ||
+          (resScore > existing.resScore) ||
+          (resScore === existing.resScore && dist < existing.distance);
+
+        if (shouldReplace) {
+          const original = cache.orderedPlan[dayIndex]?.cluster?.restaurants.find(r => r.id === res.id);
+          dishMap.set(item.name, {
+            ...res,
+            address: res.address || original?.address,
+            location: res.location || original?.location,
+            openingHours: res.openingHours || original?.openingHours,
+            dish: item.name,
+            name: res.restaurantName || res.name,
+            price: item.price,
+            resScore: resScore,
+            distance: dist
+          });
+        }
+      });
+    });
+
+    const finalOptions = Array.from(dishMap.values())
+      .sort((a, b) => {
+        if (b.resScore !== a.resScore) return b.resScore - a.resScore;
+        return a.distance - b.distance;
+      })
+      .slice(0, 30);
+
+    return {
+      success: true,
+      options: finalOptions
+    };
   }
 }
