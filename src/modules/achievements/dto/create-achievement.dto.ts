@@ -56,4 +56,8 @@ export class CreateAchievementDto {
     @IsOptional()
     @IsBoolean()
     isActive?: boolean;
+
+    @IsString() 
+    @IsOptional() 
+    icon?: string
 }
