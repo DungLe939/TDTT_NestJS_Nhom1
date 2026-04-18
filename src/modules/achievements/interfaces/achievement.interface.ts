@@ -61,6 +61,7 @@ export interface Achievement {
     condition: AchievementCondition;
     rewardId: string;
     isActive: boolean;
+    icon?: string;
 }
 
 // tiến độ của user đối với một achievement nào đó
