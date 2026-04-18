@@ -368,5 +368,11 @@ export class AchievementService {
         const docRef = await db.collection('rewards').add(reward);
         return { id: docRef.id, ...reward } as Reward;
     }
+
+    async getAllRewards(): Promise<Reward[]> {
+    const snapshot = await db.collection('rewards').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Reward[];
+    }
 }
+
 
