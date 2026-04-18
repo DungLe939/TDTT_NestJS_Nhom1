@@ -400,6 +400,9 @@ export class AchievementService {
         return { id: docRef.id, ...reward } as Reward;
     }
 
+    /**
+     * Tra ve danh sach toan bo reward.
+     */
     async getAllRewards(): Promise<Reward[]> {
     const snapshot = await db.collection('rewards').get();
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Reward[];
