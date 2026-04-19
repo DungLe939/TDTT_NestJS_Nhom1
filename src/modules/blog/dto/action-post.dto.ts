@@ -14,6 +14,16 @@ export class AddCommentDto {
     @IsString()
     @IsNotEmpty()
     content: string;
+
+    @IsOptional()
+    @IsString({ each: true })
+    photoUrls?: string[];
+}
+
+export class LikeCommentDto {
+    @IsString()
+    @IsNotEmpty()
+    userId: string;
 }
 
 export class VisitRestaurantDto {

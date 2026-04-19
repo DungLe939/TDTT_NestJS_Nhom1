@@ -3,13 +3,18 @@ import { db } from '../../providers/firebase.provider';
 import { AchievementService } from '../achievements/achievements.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { FilterPostDto } from './dto/filter-post.dto';
-import { AddCommentDto, LikePostDto, VisitRestaurantDto } from './dto/action-post.dto';
+import { AddCommentDto, LikePostDto, LikeCommentDto, VisitRestaurantDto } from './dto/action-post.dto';
 
 @Injectable()
 export class BlogService {
     private readonly logger = new Logger(BlogService.name);
-    private readonly postsCollection = db.collection('posts');
-    private readonly restaurantsCollection = db.collection('restaurants');
+    private get postsCollection() {
+        return db ? db.collection('posts') : null;
+    }
+
+    private get restaurantsCollection() {
+        return db ? db.collection('restaurants') : null;
+    }
 
     constructor(private readonly achievementService: AchievementService) {}
 
@@ -25,6 +30,11 @@ export class BlogService {
             likedByUserIds: [],
             comments: [],
         };
+
+        if (!this.postsCollection) {
+            this.logger.warn('Firestore is unavailable. Skipping createPost.');
+            return { id: 'mock-id', ...postData };
+        }
 
         const docRef = await this.postsCollection.add(postData);
         const newPost = { id: docRef.id, ...postData };
@@ -44,6 +54,10 @@ export class BlogService {
     }
 
     async getPosts(filter: FilterPostDto) {
+        if (!this.postsCollection) {
+            this.logger.warn('Firestore is unavailable. Returning empty posts.');
+            return [];
+        }
         let query: any = this.postsCollection;
 
         if (filter.authorId) {
@@ -68,6 +82,9 @@ export class BlogService {
     }
 
     async toggleLikePost(postId: string, dto: LikePostDto) {
+        if (!this.postsCollection) {
+            throw new Error('Firestore is unavailable.');
+        }
         const docRef = this.postsCollection.doc(postId);
         const doc = await docRef.get();
 
@@ -108,6 +125,9 @@ export class BlogService {
     }
 
     async addComment(postId: string, dto: AddCommentDto) {
+        if (!this.postsCollection) {
+            throw new Error('Firestore is unavailable.');
+        }
         const docRef = this.postsCollection.doc(postId);
         const doc = await docRef.get();
 
@@ -120,6 +140,9 @@ export class BlogService {
             id: `cmt-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             authorId: dto.userId,
             content: dto.content,
+            photoUrls: dto.photoUrls || [],
+            likesCount: 0,
+            likedByUserIds: [],
             createdAt: new Date().toISOString(),
         };
 
@@ -131,6 +154,46 @@ export class BlogService {
         await docRef.update({ comments: post.comments });
 
         return { id: docRef.id, ...post };
+    }
+
+    async toggleLikeComment(postId: string, commentId: string, dto: LikeCommentDto) {
+        if (!this.postsCollection) {
+            throw new Error('Firestore is unavailable.');
+        }
+        const docRef = this.postsCollection.doc(postId);
+        const doc = await docRef.get();
+
+        if (!doc.exists) {
+            throw new NotFoundException(`Post ${postId} not found`);
+        }
+
+        const post = doc.data() as any;
+        const comments = post.comments || [];
+        const commentIndex = comments.findIndex((c: any) => c.id === commentId);
+
+        if (commentIndex === -1) {
+            throw new NotFoundException(`Comment ${commentId} not found in post ${postId}`);
+        }
+
+        const comment = comments[commentIndex];
+        if (!comment.likedByUserIds) comment.likedByUserIds = [];
+        if (typeof comment.likesCount !== 'number') comment.likesCount = 0;
+
+        const index = comment.likedByUserIds.indexOf(dto.userId);
+        const alreadyLiked = index > -1;
+
+        if (alreadyLiked) {
+            comment.likedByUserIds.splice(index, 1);
+            comment.likesCount = Math.max(0, comment.likesCount - 1);
+        } else {
+            comment.likedByUserIds.push(dto.userId);
+            comment.likesCount += 1;
+        }
+
+        comments[commentIndex] = comment;
+        await docRef.update({ comments });
+
+        return { id: docRef.id, ...post, comments };
     }
 
     async visitRestaurant(dto: VisitRestaurantDto) {
@@ -146,5 +209,27 @@ export class BlogService {
         }).catch(err => this.logger.error('Failed to handle RESTAURANT_VISITED event', err));
 
         return { success: true, message: `Visited restaurant ${dto.restaurantId}` };
+    }
+
+    async getRestaurants(since?: string) {
+        if (!this.restaurantsCollection) {
+            this.logger.warn('Firestore is unavailable. Returning empty restaurants.');
+            return [];
+        }
+
+        try {
+            let query: any = this.restaurantsCollection;
+            if (since) {
+                query = query.where('updatedAt', '>', since);
+            }
+            
+            const snapshot = await query.get();
+            if (snapshot.empty) return [];
+
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (error) {
+            this.logger.error('Error fetching restaurants', error);
+            return [];
+        }
     }
 }

@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Param, Query, UsePipes, ValidationPipe } f
 import { BlogService } from './blog.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { FilterPostDto } from './dto/filter-post.dto';
-import { AddCommentDto, LikePostDto, VisitRestaurantDto } from './dto/action-post.dto';
+import { AddCommentDto, LikePostDto, LikeCommentDto, VisitRestaurantDto } from './dto/action-post.dto';
 
 @Controller('blog')
 export class BlogController {
@@ -32,9 +32,24 @@ export class BlogController {
         return this.blogService.addComment(id, dto);
     }
 
+    @Post('posts/:postId/comments/:commentId/like')
+    @UsePipes(new ValidationPipe({ transform: true }))
+    async toggleLikeComment(
+        @Param('postId') postId: string, 
+        @Param('commentId') commentId: string, 
+        @Body() dto: LikeCommentDto
+    ) {
+        return this.blogService.toggleLikeComment(postId, commentId, dto);
+    }
+
     @Post('visit-restaurant')
     @UsePipes(new ValidationPipe({ transform: true }))
     async visitRestaurant(@Body() dto: VisitRestaurantDto) {
         return this.blogService.visitRestaurant(dto);
+    }
+
+    @Get('restaurants')
+    async getRestaurants(@Query('since') since?: string) {
+        return this.blogService.getRestaurants(since);
     }
 }

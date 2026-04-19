@@ -405,4 +405,3 @@ export class AchievementService {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Reward[];
     }
 }
-}

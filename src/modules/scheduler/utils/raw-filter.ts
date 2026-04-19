@@ -74,5 +74,4 @@ export class RawFilterHelper {
 
     return rawRestaurants;
   }
-  }
 }
