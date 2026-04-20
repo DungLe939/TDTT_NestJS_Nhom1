@@ -27,6 +27,8 @@ const db = admin.firestore();
 
 // --- DATA FROM MOCKDATA.TS ---
 
+const now = Date.now();
+
 const RESTAURANTS = [
   {
     id: 'rest-1',
@@ -145,56 +147,53 @@ const ACHIEVEMENTS = [
   },
 ];
 
-const now = Date.now();
+
 const POSTS = [
-  {
-    id: 'post-1',
-    authorId: 'user-2',
-    content: 'Vừa thử sushi ở Sushi Tei, ngon tuyệt vời! Cá hồi tươi, cơm dẻo vừa phải 🍣. Giá hơi cao nhưng xứng đáng!',
-    tags: ['japanese', 'fine-dining'],
-    restaurantId: 'rest-2',
-    createdAt: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
-    likesCount: 3,
-    likedByUserIds: ['user-1', 'user-3', 'user-2'],
-    comments: [],
-  },
-  {
-    id: 'post-2',
-    authorId: 'user-1',
-    content: 'Phở Thìn buổi sáng là không thể thiếu ☀️ Nước dùng đậm đà, thịt bò mềm. Chỉ 50k/bát mà no đến tận trưa!',
-    tags: ['vietnamese', 'budget', 'breakfast'],
-    restaurantId: 'rest-1',
-    createdAt: new Date(now - 5 * 60 * 60 * 1000).toISOString(),
-    likesCount: 5,
-    likedByUserIds: ['user-2', 'user-3'],
-    comments: [],
-  },
-  {
-    id: 'post-3',
-    authorId: 'user-3',
-    content: 'Bún chả Hương Liên nổi tiếng từ thời ông Obama ghé thăm 😄 Chả nướng thơm, bún tươi, nước mắm chua ngọt rất chuẩn vị.',
-    tags: ['vietnamese', 'lunch', 'budget'],
-    restaurantId: 'rest-3',
-    createdAt: new Date(now - 24 * 60 * 60 * 1000).toISOString(),
-    likesCount: 8,
-    likedByUserIds: ['user-1', 'user-2'],
-    comments: [],
-  },
+  // Page 1
+  { id: 'post-1', authorId: 'user-2', content: 'Sushi ở Sushi Tei ngon cực! 🍣', tags: ['japanese'], restaurantId: 'rest-2', createdAt: new Date(now - 1 * 3600000).toISOString(), likesCount: 3, likedByUserIds: [], comments: [] },
+  { id: 'post-2', authorId: 'user-1', content: 'Phở Thìn buổi sáng ☀️', tags: ['vietnamese'], restaurantId: 'rest-1', createdAt: new Date(now - 2 * 3600000).toISOString(), likesCount: 5, likedByUserIds: [], comments: [] },
+  { id: 'post-3', authorId: 'user-3', content: 'Bún chả Hương Liên chuẩn vị!', tags: ['vietnamese'], restaurantId: 'rest-3', createdAt: new Date(now - 3 * 3600000).toISOString(), likesCount: 8, likedByUserIds: [], comments: [] },
+  { id: 'post-4', authorId: 'user-2', content: 'Sakura set lunch ổn áp 🍱', tags: ['japanese'], restaurantId: 'rest-4', createdAt: new Date(now - 4 * 3600000).toISOString(), likesCount: 2, likedByUserIds: [], comments: [] },
+  { id: 'post-5', authorId: 'user-1', content: 'Cơm tấm Sài Gòn linh hồn bữa sáng!', tags: ['vietnamese'], restaurantId: 'rest-5', createdAt: new Date(now - 5 * 3600000).toISOString(), likesCount: 6, likedByUserIds: [], comments: [] },
+  
+  // Page 2
+  { id: 'post-6', authorId: 'user-3', content: 'Món Hàn ở đây cay xè nhưng ghiền 🌶️', tags: ['korean'], restaurantId: 'rest-2', createdAt: new Date(now - 6 * 3600000).toISOString(), likesCount: 1, likedByUserIds: [], comments: [] },
+  { id: 'post-7', authorId: 'user-1', content: 'Bánh mì Huỳnh Hoa nhiều thịt quá!', tags: ['vietnamese', 'street-food'], restaurantId: 'rest-1', createdAt: new Date(now - 7 * 3600000).toISOString(), likesCount: 12, likedByUserIds: [], comments: [] },
+  { id: 'post-8', authorId: 'user-2', content: 'Ramen Ippudo nước dùng béo ngậy 🍜', tags: ['japanese'], restaurantId: 'rest-4', createdAt: new Date(now - 8 * 3600000).toISOString(), likesCount: 4, likedByUserIds: [], comments: [] },
+  { id: 'post-9', authorId: 'user-3', content: 'Pizza 4Ps chưa bao giờ thất vọng 🍕', tags: ['italian'], restaurantId: 'rest-3', createdAt: new Date(now - 9 * 3600000).toISOString(), likesCount: 15, likedByUserIds: [], comments: [] },
+  { id: 'post-10', authorId: 'user-1', content: 'Gà rán Popeyes giòn tan!', tags: ['fast-food'], restaurantId: 'rest-5', createdAt: new Date(now - 10 * 3600000).toISOString(), likesCount: 7, likedByUserIds: [], comments: [] },
+  
+  // Page 3
+  { id: 'post-11', authorId: 'user-2', content: 'Lẩu Haidilao múa mì vui ghê 😂', tags: ['chinese'], restaurantId: 'rest-2', createdAt: new Date(now - 11 * 3600000).toISOString(), likesCount: 20, likedByUserIds: [], comments: [] },
+  { id: 'post-12', authorId: 'user-3', content: 'Ốc Đào Q1 đa dạng món 🐚', tags: ['vietnamese', 'street-food'], restaurantId: 'rest-1', createdAt: new Date(now - 12 * 3600000).toISOString(), likesCount: 9, likedByUserIds: [], comments: [] },
+  { id: 'post-13', authorId: 'user-1', content: 'Dimsum San Fu Lou ngon mắt lẹ miệng.', tags: ['chinese'], restaurantId: 'rest-4', createdAt: new Date(now - 13 * 3600000).toISOString(), likesCount: 5, likedByUserIds: [], comments: [] },
+  { id: 'post-14', authorId: 'user-2', content: 'Steak El Gaucho đẳng cấp 🥩', tags: ['western'], restaurantId: 'rest-3', createdAt: new Date(now - 14 * 3600000).toISOString(), likesCount: 11, likedByUserIds: [], comments: [] },
+  { id: 'post-15', authorId: 'user-3', content: 'Trà sữa Phúc Long đậm trà 🍵', tags: ['vietnamese', 'drinks'], restaurantId: 'rest-5', createdAt: new Date(now - 15 * 3600000).toISOString(), likesCount: 30, likedByUserIds: [], comments: [] },
 ];
 
 async function clearCollection(name: string) {
   const snap = await db.collection(name).get();
-  const batch = db.batch();
-  snap.docs.forEach(doc => batch.delete(doc.ref));
-  await batch.commit();
-  console.log(`🗑️ Cleared ${name}`);
+  const docs = snap.docs;
+  if (docs.length === 0) return;
+
+  const chunks: admin.firestore.QueryDocumentSnapshot[][] = [];
+  for (let i = 0; i < docs.length; i += 500) {
+    chunks.push(docs.slice(i, i + 500));
+  }
+
+  for (const chunk of chunks) {
+    const batch = db.batch();
+    chunk.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  }
+  console.log(`🗑️ Cleared ${name} (${docs.length} docs)`);
 }
 
 async function seed() {
   console.log('🚀 Starting seed process...');
 
   // Optional: Clear existing data first to avoid duplicates or mixed states
-  await clearCollection('restaurants');
+  // [SAFE] Restaurant collection is preserved and maintained independently.
   await clearCollection('posts');
   await clearCollection('rewards');
   await clearCollection('achievements');
@@ -203,7 +202,7 @@ async function seed() {
 
   console.log('📝 Adding to batch...');
 
-  RESTAURANTS.forEach(r => batch.set(db.collection('restaurants').doc(r.id), r));
+  // [SAFE] Restaurants are managed via external API synchronization or emergency restoration script.
   REWARDS.forEach(r => batch.set(db.collection('rewards').doc(r.id), r));
   ACHIEVEMENTS.forEach(a => batch.set(db.collection('achievements').doc(a.id), a));
   POSTS.forEach(p => batch.set(db.collection('posts').doc(p.id), p));
