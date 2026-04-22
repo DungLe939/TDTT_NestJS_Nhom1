@@ -12,6 +12,7 @@ import {
     UserRewardResolved,
 } from './interfaces/achievement.interface';
 import { ProgressTrackerService } from './progress-tracker.service';
+import { UserStatsService } from './user-stats.service';
 
 /**
  * Blog & feature 1, 2, 3, 4 sẽ giao tiếp với Achievement system qua handleActivityEvent method
@@ -26,7 +27,8 @@ export class AchievementService {
     private readonly CACHE_TTL = 60_000; // 1 phút
 
     constructor(
-        private readonly progressTrackerService: ProgressTrackerService
+        private readonly progressTrackerService: ProgressTrackerService,
+        private readonly userStatsService: UserStatsService
     ) { }
 
     // =========================================================================
@@ -206,6 +208,23 @@ export class AchievementService {
         // ghi reward vào database cho user (dùng set thay vì add → idempotent)
         await docRef.set(userReward);
 
+        const statsRef = db.collection('user_stats').doc(userId);
+        const rewardData = rewardDoc.data();
+
+        if (rewardData?.type === 'points') {
+            // await statsRef.set(
+            //     { totalPoints: (await statsRef.get()).data()?.totalPoints + rewardData.value || rewardData.value },
+            //     { merge: true }
+            // );
+            await this.userStatsService.updateUserStats(userId, rewardData.value);
+        } else if (rewardData?.type === 'badge') {
+            // await statsRef.set(
+            //     { badges: [...((await statsRef.get()).data()?.badges || []), rewardId] },
+            //     { merge: true }
+            // );
+            await this.userStatsService.updateUserStats(userId, rewardData.badge);
+        }
+
         // thông báo cho user
         await this.notifyUser(userId, achievementId, rewardDocId);
     }
@@ -296,6 +315,27 @@ export class AchievementService {
     }
 
     /**
+     * Trả về thông tin tổng quát của người dùng (xp, level, badges, ...).
+     */
+    async getUserStats(userId: string) {
+        let doc = await db.collection('user_stats').doc(userId).get();
+        if (!doc.exists) {
+            // doc = await this.createTracker(userId, achievement.id!, requiredCount);
+        }
+        return doc.exists
+            ? { userId, ...doc.data() }
+            : { userId, totalPoints: 0, badges: [] };
+    }
+
+    /**
+     * Trả về danh sách toàn bộ reward.
+     */
+    async getAllRewards(): Promise<Reward[]> {
+        const snapshot = await db.collection('rewards').get();
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Reward[];
+    }
+
+    /**
      * Đánh dấu voucher là đã sử dụng. Thất bại nếu đã sử dụng hoặc hết hạn.
      *
      * @param userId       - người dùng đang redeem voucher
@@ -345,7 +385,7 @@ export class AchievementService {
     }
 
     /**
-     * Định nghĩa một achievment mới. Chỉ dành cho admin.
+     * Định nghĩa một achievement mới. Chỉ dành cho admin.
      */
     async createAchievement(dto: {
         name: string;
@@ -400,11 +440,5 @@ export class AchievementService {
         return { id: docRef.id, ...reward } as Reward;
     }
 
-    /**
-     * Tra ve danh sach toan bo reward.
-     */
-    async getAllRewards(): Promise<Reward[]> {
-    const snapshot = await db.collection('rewards').get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Reward[];
-    }
+
 }

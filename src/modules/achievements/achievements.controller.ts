@@ -40,6 +40,24 @@ export class AchievementsController {
     }
 
     /**
+     * GET /users/:userId/stats
+     * Trả về thông tin tổng quát của người dùng (xp, level, badges, ...).
+     */
+    @Get('users/:userId/stats')
+    async getUserStats(@Param('userId') userId: string) {
+        return this.achievementsService.getUserStats(userId);
+    }
+
+    /**
+     * GET /rewards
+     * Trả về tất cả các phần thưởng hiện có trong database.
+     */
+    @Get('rewards')
+    async getAllRewards() {
+        return this.achievementsService.getAllRewards();
+    }
+
+    /**
      * POST /rewards/redeem
      * Đánh dấu voucher là đã sử dụng. Thất bại nếu đã sử dụng hoặc hết hạn.
      *
@@ -81,11 +99,6 @@ export class AchievementsController {
         return this.achievementsService.createReward(dto);
     }
 
-    @Get('rewards')
-    async getAllRewards() {
-    return this.achievementsService.getAllRewards();
-    }
-    
     /**
  * TODO: REMOVE before production. Test-only endpoint to simulate activity events.
  */

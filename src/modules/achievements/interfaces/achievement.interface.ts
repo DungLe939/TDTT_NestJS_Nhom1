@@ -97,3 +97,19 @@ export interface UserRewardResolved extends UserReward {
     reward: Reward | null;
 }
 
+export interface UserBadge {
+    id?: string;
+    name: string;
+    description: string;
+    icon: string;
+    userId: string;
+    earnedAt: Date;
+}
+
+export interface UserStats {
+    userId: string;
+    xp: number;
+    level: number;
+    badges: UserBadge[];
+}
+
