@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "input": "I am very hungry",
+    "output": "Tôi rất đói.",
+    "method": "VinAI",
+    "sentiment": {
+      "label": "POS",
+      "score": 0.98
+    }
+  },
+  "timestamp": "2026-04-11T13:34:44.404Z"
+}
