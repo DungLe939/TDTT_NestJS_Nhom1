@@ -211,6 +211,7 @@ export class AchievementService {
 
         const rewardData = rewardDoc.data();
 
+        // Update userStats (xp, badge)
         if (rewardData?.type === 'points') {
             await this.userStatsService.updateUserStats(userId, { xp: rewardData.value });
 
