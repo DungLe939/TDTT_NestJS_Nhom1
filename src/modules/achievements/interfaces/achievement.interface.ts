@@ -119,6 +119,10 @@ export interface Level {
     maxXp: number;
 }
 
+
+//_________________________const_____________________
+
+
 export const LEVELS: Level[] = [
     { level: 1, minXp: 0, maxXp: 100 },
     { level: 2, minXp: 100, maxXp: 300 },
@@ -127,3 +131,12 @@ export const LEVELS: Level[] = [
     { level: 5, minXp: 1000, maxXp: 99999 },
 ];
 
+export const XP_PER_ACTIVITY: Record<ActivityEventType, number> = {
+    POST_CREATED: 10,
+    RESTAURANT_VISITED: 20,
+    POST_LIKED: 5,
+    FOOD_SCANNED: 10,
+    MENU_TRANSLATED: 10,
+    SCHEDULE_COMPLETED: 10,
+    GROUP_TASTE_USED: 10,
+}
