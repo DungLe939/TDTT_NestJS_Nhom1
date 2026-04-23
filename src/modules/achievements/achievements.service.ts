@@ -10,6 +10,7 @@ import {
     ProgressTracker,
     UserReward,
     UserRewardResolved,
+    UserBadge
 } from './interfaces/achievement.interface';
 import { ProgressTrackerService } from './progress-tracker.service';
 import { UserStatsService } from './user-stats.service';
@@ -208,21 +209,21 @@ export class AchievementService {
         // ghi reward vào database cho user (dùng set thay vì add → idempotent)
         await docRef.set(userReward);
 
-        const statsRef = db.collection('user_stats').doc(userId);
         const rewardData = rewardDoc.data();
 
         if (rewardData?.type === 'points') {
-            // await statsRef.set(
-            //     { totalPoints: (await statsRef.get()).data()?.totalPoints + rewardData.value || rewardData.value },
-            //     { merge: true }
-            // );
-            await this.userStatsService.updateUserStats(userId, rewardData.value);
+            await this.userStatsService.updateUserStats(userId, { xp: rewardData.value });
+
         } else if (rewardData?.type === 'badge') {
-            // await statsRef.set(
-            //     { badges: [...((await statsRef.get()).data()?.badges || []), rewardId] },
-            //     { merge: true }
-            // );
-            await this.userStatsService.updateUserStats(userId, rewardData.badge);
+
+            const userBadges: UserBadge = {
+                id: rewardDoc.id,
+                description: rewardData.description,
+                icon: rewardData.icon ?? '',
+                userId: userId,
+                earnedAt: new Date(),
+            };
+            await this.userStatsService.updateUserStats(userId, { badges: [userBadges] });
         }
 
         // thông báo cho user
@@ -318,13 +319,7 @@ export class AchievementService {
      * Trả về thông tin tổng quát của người dùng (xp, level, badges, ...).
      */
     async getUserStats(userId: string) {
-        let doc = await db.collection('user_stats').doc(userId).get();
-        if (!doc.exists) {
-            // doc = await this.createTracker(userId, achievement.id!, requiredCount);
-        }
-        return doc.exists
-            ? { userId, ...doc.data() }
-            : { userId, totalPoints: 0, badges: [] };
+        return this.userStatsService.getUserStats(userId);
     }
 
     /**
