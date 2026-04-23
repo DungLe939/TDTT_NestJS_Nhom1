@@ -98,14 +98,5 @@ export class AchievementsController {
     async createReward(@Body() dto: CreateRewardDto) {
         return this.achievementsService.createReward(dto);
     }
-
-    /**
- * TODO: REMOVE before production. Test-only endpoint to simulate activity events.
- */
-    @Post('test/activity-event')
-    async testHandleEvent(@Body() event: any) {
-        await this.achievementsService.handleActivityEvent(event);
-        return { received: true };
-    }
 }
 
