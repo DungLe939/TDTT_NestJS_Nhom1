@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { db } from '../../providers/firebase.provider';
-import { UserStats, UserBadge, LEVELS } from './interfaces/achievement.interface';
+import { UserStats, UserBadge, ActivityEvent, LEVELS, XP_PER_ACTIVITY, ActivityEventType } from './interfaces/achievement.interface';
 
 @Injectable()
 export class UserStatsService {
@@ -51,7 +51,7 @@ export class UserStatsService {
             const newLevel = [...LEVELS].reverse().find(l => totalXp >= l.minXp) ?? LEVELS[0];
             updateData.level = newLevel.level;
         }
-        if (badges !== undefined) {
+        if (badges !== undefined && badges.length > 0) {
             updateData.badges = [...(snap.data()?.badges || []), ...badges];
         }
 
