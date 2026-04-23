@@ -7,14 +7,13 @@ import {
     Reward,
     AchievementCondition,
     RewardType,
-    ProgressTracker,
     UserReward,
     UserRewardResolved,
-    UserBadge
+    UserBadge,
+    XP_PER_ACTIVITY
 } from './interfaces/achievement.interface';
 import { ProgressTrackerService } from './progress-tracker.service';
 import { UserStatsService } from './user-stats.service';
-import { XP_PER_ACTIVITY } from './interfaces/achievement.interface';
 
 /**
  * Blog & feature 1, 2, 3, 4 sẽ giao tiếp với Achievement system qua handleActivityEvent method
