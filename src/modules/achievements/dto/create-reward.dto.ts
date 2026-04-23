@@ -23,4 +23,8 @@ export class CreateRewardDto {
     @Type(() => Date)
     @IsDate()
     expiresAt?: Date;
+
+    @IsOptional()
+    @IsString()
+    icon?: string;
 }
