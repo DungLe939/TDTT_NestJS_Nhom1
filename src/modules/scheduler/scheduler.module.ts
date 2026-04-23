@@ -21,13 +21,11 @@ import { PlanCacheHelper } from './utils/plan-cache';
     ScoringHelper,
     GeminiScoringHelper,
     GeminiGenerateScheduleHelper,
-    PlanCacheHelper
+    PlanCacheHelper,
   ],
 })
 export class SchedulerModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(GuestSessionMiddleware)
-      .forRoutes(SchedulerController);
+    consumer.apply(GuestSessionMiddleware).forRoutes(SchedulerController);
   }
 }

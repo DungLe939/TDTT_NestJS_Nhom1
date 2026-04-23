@@ -4,13 +4,13 @@
  * FinalPlanDay sẽ là kết quả cuối cùng của pipeline
  */
 export interface FinalPlanDay {
-    // Thứ tự ngày (ví dụ: ngày 1, ngày 2)
-    day: number;
+  // Thứ tự ngày (ví dụ: ngày 1, ngày 2)
+  day: number;
 
-    // Các bữa ăn được sắp xếp trong ngày
-    meals: {
-        breakfast?: any; // Bữa sáng
-        lunch?: any;     // Bữa trưa
-        dinner?: any;    // Bữa tối
-    };
+  // Các bữa ăn được sắp xếp trong ngày
+  meals: {
+    breakfast?: any; // Bữa sáng
+    lunch?: any; // Bữa trưa
+    dinner?: any; // Bữa tối
+  };
 }

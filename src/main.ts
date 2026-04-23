@@ -11,11 +11,37 @@ async function bootstrap() {
   // Tạo instance của ứng dụng NestJS từ AppModule
   const app = await NestFactory.create(AppModule);
 
-  // Cấu hình CORS (Cross-Origin Resource Sharing)
-  // Cho phép các yêu cầu từ các domain khác (ví dụ: frontend ReactJS)
+  // ----------------------------------------------------------------------
+  // [HƯỚNG DẪN DÀNH CHO NHÓM] - LƯU Ý VỀ BẢO MẬT KHI DÙNG PINGGY
+  // ----------------------------------------------------------------------
+  // Tại sao phải có dòng app.enableCors() này?
+  // Bình thường, React chạy ở `localhost:5173`, còn NestJS chạy ở `localhost:3000`.
+  // Khi dùng Pinggy, NestJS biến thành link `https://xxx.a.pinggy.link`.
+  // Trình duyệt sẽ chặn React vì nó cố giao tiếp với một "người lạ" khác địa chỉ.
+  // Dòng code này chính là để cấp quyền "cho phép React đi qua cửa".
+  // Đừng bao giờ xóa dòng này nếu bạn muốn test API trên internet nhé!
+  // ----------------------------------------------------------------------
   app.enableCors({
-    origin: true,        // Chấp nhận tất cả các origin (hoặc cấu hình domain cụ thể)
-    credentials: true,   // Cho phép gửi kèm cookie/auth headers
+    origin: (origin, callback) => {
+      // Cho phép request không có origin (Postman, server-to-server, mobile app)
+      if (!origin) return callback(null, true);
+
+      // Danh sách các origin được phép (Dev + Pinggy tunnel)
+      const allowedPatterns = [
+        /^http:\/\/localhost:\d+$/, // React dev (5173, 3000, etc.)
+        /^https?:\/\/.*\.pinggy\.link$/, // Pinggy tunnel
+      ];
+
+      const isAllowed = allowedPatterns.some((pattern) => pattern.test(origin));
+      if (isAllowed) {
+        callback(null, origin);
+      } else {
+        callback(null, origin); // Cho phép tất cả origin trong giai đoạn phát triển
+      }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    credentials: true,
   });
 
   // Sử dụng middleware để parse Cookie từ request
@@ -25,11 +51,13 @@ async function bootstrap() {
    * Cấu hình ValidationPipe toàn cục.
    * Giúp tự động kiểm tra và chuyển đổi dữ liệu đầu vào dựa trên class-validator trong DTO.
    */
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,              // Tự động loại bỏ các thuộc tính không được khai báo trong DTO
-    forbidNonWhitelisted: true,    // Trả về lỗi nếu request chứa thuộc tính lạ
-    transform: true,              // Tự động chuyển đổi kiểu dữ liệu (ví dụ: string "1" -> number 1)
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Tự động loại bỏ các thuộc tính không được khai báo trong DTO
+      forbidNonWhitelisted: true, // Trả về lỗi nếu request chứa thuộc tính lạ
+      transform: true, // Tự động chuyển đổi kiểu dữ liệu (ví dụ: string "1" -> number 1)
+    }),
+  );
 
   // Lắng nghe ứng dụng trên PORT từ file .env hoặc mặc định là 3000
   await app.listen(process.env.PORT ?? 3000);
