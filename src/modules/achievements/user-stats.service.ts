@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { db } from '../../providers/firebase.provider';
-import { UserStats, UserBadge } from './interfaces/achievement.interface';
+import { UserStats, UserBadge, LEVELS } from './interfaces/achievement.interface';
 
 @Injectable()
 export class UserStatsService {
@@ -13,12 +13,8 @@ export class UserStatsService {
     async getUserStats(userId: string): Promise<UserStats> {
         const doc = await db.collection(this.collectionName).doc(userId).get();
         if (!doc.exists) {
-            return {
-                userId,
-                xp: 0,
-                level: 1,
-                badges: [],
-            };
+            const userStat = await this.createUserStats(userId);
+            return userStat;
         }
         return { userId, ...doc.data() } as UserStats;
     }
@@ -33,24 +29,31 @@ export class UserStatsService {
             level: 1,
             badges: [],
         };
-        const docRef = await db.collection(this.collectionName).add(userStats);
-        return { ...userStats, userId: docRef.id, };
+        await db.collection(this.collectionName).doc(userId).set(userStats);
+        return userStats;
     }
 
     /**
      * Cập nhật thông tin liên quan đến thành tích của user
      */
-    async updateUserStats(userId: string, xp?: number, level?: number, badges?: UserBadge[]): Promise<UserStats> {
-        let docRef = db.collection(this.collectionName).doc(userId);
-        if (!docRef.exists) {
-            docRef = await this.createUserStats(userId);
+    async updateUserStats(userId: string, { xp, badges }: { xp?: number, badges?: UserBadge[] }): Promise<UserStats> {
+        const docRef = db.collection(this.collectionName).doc(userId);
+        const snap = await docRef.get();
+        if (!snap.exists) {
+            await this.createUserStats(userId);
         }
-
         const updateData: Partial<UserStats> = {};
 
-        if (xp !== undefined) updateData.xp = xp;
-        if (level !== undefined) updateData.level = level;
-        if (badges !== undefined) updateData.badges = badges;
+        const currentData = snap.data() ?? { xp: 0, level: 1, badges: [] };
+        if (xp !== undefined) {
+            const totalXp = currentData.xp + xp;
+            updateData.xp = totalXp;
+            const newLevel = [...LEVELS].reverse().find(l => totalXp >= l.minXp) ?? LEVELS[0];
+            updateData.level = newLevel.level;
+        }
+        if (badges !== undefined) {
+            updateData.badges = [...(snap.data()?.badges || []), ...badges];
+        }
 
         if (Object.keys(updateData).length > 0) {
             await docRef.update(updateData);
