@@ -51,6 +51,7 @@ export interface Reward {
     value: number; // e.g., 15 for a 15% discount
     description: string;
     expiresAt?: Date;
+    icon?: string
 }
 
 // định nghĩa achievement
@@ -98,10 +99,9 @@ export interface UserRewardResolved extends UserReward {
 }
 
 export interface UserBadge {
-    id?: string;
-    name: string;
+    id: string;
     description: string;
-    icon: string;
+    icon?: string;
     userId: string;
     earnedAt: Date;
 }
@@ -112,4 +112,18 @@ export interface UserStats {
     level: number;
     badges: UserBadge[];
 }
+
+export interface Level {
+    level: number;
+    minXp: number;
+    maxXp: number;
+}
+
+export const LEVELS: Level[] = [
+    { level: 1, minXp: 0, maxXp: 100 },
+    { level: 2, minXp: 100, maxXp: 300 },
+    { level: 3, minXp: 300, maxXp: 600 },
+    { level: 4, minXp: 600, maxXp: 1000 },
+    { level: 5, minXp: 1000, maxXp: 99999 },
+];
 
