@@ -19,6 +19,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@dataconnect/admin-generated": "file:src/dataconnect-admin-generated",
     "@google/generative-ai": "^0.24.1",
     "@nestjs/common": "^11.1.18",
     "@nestjs/config": "^4.0.4",

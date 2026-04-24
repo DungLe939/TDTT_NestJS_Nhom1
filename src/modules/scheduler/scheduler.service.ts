@@ -1,13 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { db } from '../../providers/firebase.provider';
-import { fetchNearbyRestaurants } from './utils/fetch-locationiq';
-import { fakeRemainingData } from './utils/fake-data';
 import axios from 'axios';
 import { ClusteringHelper } from './algorithms/k-means';
 import { ScoringHelper } from './utils/scoring';
 import { RawFilterHelper } from './utils/raw-filter';
 import { PlanCacheHelper } from './utils/plan-cache';
 import { calculateDistance } from './algorithms/haversine';
+import { ShopeeFoodLoader } from './utils/shopeefood-loader';
 
 @Injectable()
 export class SchedulerService {
@@ -16,6 +14,7 @@ export class SchedulerService {
     private readonly clusteringHelper: ClusteringHelper,
     private readonly scoringHelper: ScoringHelper,
     private readonly planCacheHelper: PlanCacheHelper,
+    private readonly shopeeFoodLoader: ShopeeFoodLoader,
   ) {}
 
   // Hàm lấy tọa độ từ Keyword
@@ -65,40 +64,22 @@ export class SchedulerService {
     }
   }
 
-  //Hàm quét dữ liệu các quán ăn và lưu vào database
-  // được gọi từ endpoint: /schedule/searchLocation
+  /**
+   * PHIÊN BẢN MỚI: Không cần quét LocationIQ hay fake data nữa.
+   * Dữ liệu quán ăn ShopeeFood đã có sẵn trong ShopeeFoodLoader.
+   * Chỉ cần geocode keyword → tọa độ rồi trả về xác nhận.
+   * Được gọi từ endpoint: /schedule/searchLocation
+   */
   async processSearchLocation(keyword: string, guestId: string) {
-    // lấy tọa độ từ keyword
+    // Lấy tọa độ từ keyword (giữ nguyên logic geocoding)
     const coords = await this.getCoordsFromKeyword(keyword);
     if (!coords) return null;
 
-    const { lat, lng } = coords;
-
-    // Xóa dữ liệu cũ của guest này trong Firestore => tránh phình to DB
-    const batch = db.batch();
-    const oldDocs = await db
-      .collection('restaurants')
-      .where('guest_id', '==', guestId)
-      .get();
-
-    oldDocs.forEach((doc) => batch.delete(doc.ref));
-
-    // Lấy dữ liệu quán ăn từ locationiq
-    const rawData = await fetchNearbyRestaurants(lat, lng);
-
-    // Fake dữ liệu cho đủ Schema
-    const fullData = fakeRemainingData(rawData, guestId);
-
-    // Lưu vào Firestore
-    fullData.forEach((item) => {
-      const docRef = db.collection('restaurants').doc();
-      batch.set(docRef, item);
-    });
-
-    await batch.commit();
+    // Lấy danh sách quán ăn từ ShopeeFood (đã load sẵn khi server khởi động)
+    const allRestaurants = this.shopeeFoodLoader.getAllRestaurants();
 
     return {
-      data: fullData,
+      data: allRestaurants,
       coords: coords,
     };
   }
@@ -174,6 +155,9 @@ export class SchedulerService {
         const originalData = rawRestaurants.find((r) => r.id === aiChoice.id);
 
         if (originalData) {
+          // Tìm ảnh của món ăn cụ thể trong menu
+          const selectedDishData = originalData.menu?.find(m => m.name === aiChoice.dish);
+          
           enrichedMeals[session] = {
             // Thông tin từ AI (Món ăn cụ thể và lý do)
             dish: aiChoice.dish,
@@ -182,6 +166,7 @@ export class SchedulerService {
             category: aiChoice.category,
             time: aiChoice.time,
             type: 'main', // Mặc định là bữa chính
+            img: selectedDishData?.imageUrl || originalData.coverImage || '', // Lấy ảnh món ăn hoặc ảnh quán
 
             // Thông tin gốc từ RestaurantDto (Dữ liệu cố định)
             id: originalData.id,
@@ -189,12 +174,9 @@ export class SchedulerService {
             address: originalData.address || 'Địa chỉ đang cập nhật',
             location: originalData.location,
             priceRange: originalData.priceRange,
+            price_range: originalData.price_range, // Thêm dữ liệu giá chi tiết
             rating: originalData.rating || 4.0,
-            openingHours:
-              originalData.openingHours &&
-              typeof originalData.openingHours === 'object'
-                ? `${originalData.openingHours.open}-${originalData.openingHours.close}`
-                : originalData.openingHours || '07:00-22:00',
+            openingHours: originalData.openingHours || { open: '07:00', close: '22:00' },
             menu: originalData.menu,
             guest_id: originalData.guest_id,
           };
@@ -342,9 +324,26 @@ export class SchedulerService {
       result.scoredRestaurants,
     );
 
+    // Bổ sung ảnh món ăn cho kết quả
+    const enrichedMeals = {};
+    if (result.dayResult.meals) {
+      for (const [session, meal] of Object.entries(result.dayResult.meals)) {
+        const mealAny = meal as any;
+        const originalData = cache.rawRestaurants.find(r => r.id === mealAny.id);
+        const selectedDishData = originalData?.menu?.find(m => m.name === mealAny.dish);
+        
+        enrichedMeals[session] = {
+          ...mealAny,
+          img: selectedDishData?.imageUrl || originalData?.coverImage || '',
+          price_range: originalData?.price_range,
+          openingHours: originalData?.openingHours || { open: '07:00', close: '22:00' }
+        };
+      }
+    }
+
     return {
       day: dayIndex + 1,
-      meals: result.dayResult.meals,
+      meals: enrichedMeals,
       snackCandidates: result.snackCandidates,
     };
   }
@@ -469,6 +468,7 @@ export class SchedulerService {
             location: res.location || original?.location,
             openingHours: res.openingHours || original?.openingHours,
             dish: item.name,
+            img: item.imageUrl || original?.coverImage || '', // Thêm ảnh cho món đổi
             name: res.restaurantName || res.name,
             price: item.price,
             resScore: resScore,

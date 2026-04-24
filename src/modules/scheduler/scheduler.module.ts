@@ -10,6 +10,7 @@ import { ScoringHelper } from './utils/scoring';
 import { GeminiScoringHelper } from './utils/gemini-scoring';
 import { GeminiGenerateScheduleHelper } from './utils/gemini-generate-schelude';
 import { PlanCacheHelper } from './utils/plan-cache';
+import { ShopeeFoodLoader } from './utils/shopeefood-loader';
 
 @Module({
   controllers: [SchedulerController],
@@ -22,6 +23,7 @@ import { PlanCacheHelper } from './utils/plan-cache';
     GeminiScoringHelper,
     GeminiGenerateScheduleHelper,
     PlanCacheHelper,
+    ShopeeFoodLoader,
   ],
 })
 export class SchedulerModule implements NestModule {
@@ -29,3 +31,4 @@ export class SchedulerModule implements NestModule {
     consumer.apply(GuestSessionMiddleware).forRoutes(SchedulerController);
   }
 }
+

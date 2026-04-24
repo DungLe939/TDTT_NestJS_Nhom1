@@ -2,15 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { GeminiScoringHelper } from './gemini-scoring';
 import { SortingHelper } from '../algorithms/sorting';
 import { FinalPlanDay } from '../dto/final-plan.dto';
-import { GeminiGenerateScheduleHelper } from './gemini-generate-schelude';
 
 @Injectable()
 export class ScoringHelper {
   constructor(
     private readonly geminiScoring: GeminiScoringHelper,
     private readonly sortingHelper: SortingHelper,
-    private readonly geminiGenerateScheduleHelper: GeminiGenerateScheduleHelper,
-  ) {}
+  ) { }
 
   /**
    * generateFinalPlan: Hàm điều phối chính để tạo lịch trình ăn uống hoàn chỉnh.
@@ -240,7 +238,7 @@ export class ScoringHelper {
           const top20Restaurants = sortedRestaurants.slice(0, 20);
           const randomFallbackRestaurant =
             top20Restaurants[
-              Math.floor(Math.random() * top20Restaurants.length)
+            Math.floor(Math.random() * top20Restaurants.length)
             ];
 
           if (
