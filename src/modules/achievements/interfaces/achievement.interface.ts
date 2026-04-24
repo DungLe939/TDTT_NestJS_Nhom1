@@ -110,6 +110,9 @@ export interface UserStats {
     userId: string;
     xp: number;
     level: number;
+    levelTitle: string;
+    xpToNextLevel: number;
+    progressPercent: number;
     badges: UserBadge[];
 }
 
@@ -117,6 +120,7 @@ export interface Level {
     level: number;
     minXp: number;
     maxXp: number;
+    title: string;
 }
 
 
@@ -124,11 +128,11 @@ export interface Level {
 
 
 export const LEVELS: Level[] = [
-    { level: 1, minXp: 0, maxXp: 100 },
-    { level: 2, minXp: 100, maxXp: 300 },
-    { level: 3, minXp: 300, maxXp: 600 },
-    { level: 4, minXp: 600, maxXp: 1000 },
-    { level: 5, minXp: 1000, maxXp: 99999 },
+    { level: 1, minXp: 0, maxXp: 100, title: 'Người mới khám phá' },
+    { level: 2, minXp: 100, maxXp: 300, title: 'Tín đồ ẩm thực' },
+    { level: 3, minXp: 300, maxXp: 600, title: 'Nhà thám hiểm ẩm thực' },
+    { level: 4, minXp: 600, maxXp: 1000, title: 'Bậc thầy ẩm thực' },
+    { level: 5, minXp: 1000, maxXp: 99999, title: 'Huyền thoại ẩm thực' },
 ];
 
 export const XP_PER_ACTIVITY: Record<ActivityEventType, number> = {
