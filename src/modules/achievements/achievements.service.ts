@@ -224,7 +224,7 @@ export class AchievementService {
             const userBadges: UserBadge = {
                 id: rewardDoc.id,
                 description: rewardData.description,
-                icon: rewardData.icon ?? '',
+                icon: rewardData.icon ?? null,
                 userId: userId,
                 earnedAt: new Date(),
             };
@@ -427,6 +427,7 @@ export class AchievementService {
         value: number;
         description: string;
         expiresAt?: Date;
+        icon?: string;
     }): Promise<Reward> {
         const reward: Partial<Reward> = {
             type: dto.type,
@@ -435,6 +436,9 @@ export class AchievementService {
         };
         if (dto.expiresAt) {
             reward.expiresAt = dto.expiresAt;
+        }
+        if (dto.icon) {
+            reward.icon = dto.icon;
         }
         const docRef = await db.collection('rewards').add(reward);
         return { id: docRef.id, ...reward } as Reward;
