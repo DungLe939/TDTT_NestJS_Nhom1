@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { RestaurantDto } from 'src/modules/restaurants/dto/restaurant.dto';
-import { LocationDto } from 'src/modules/scheduler/dto/location.dto';
-import { ClusterDto } from 'src/modules/scheduler/dto/cluster.dto';
+import { RestaurantDto } from '../../restaurants/dto/restaurant.dto';
+import { LocationDto } from '../dto/location.dto';
+import { ClusterDto } from '../dto/cluster.dto';
 const skmeans = require('skmeans');
 
 /**

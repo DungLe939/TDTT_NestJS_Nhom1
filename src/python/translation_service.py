@@ -16,20 +16,61 @@ sys.stderr.reconfigure(encoding='utf-8')
 cache_dir = "D:/baitap/TuDuyTinhToan/models_cache"
 en2vi_model = "vinai/vinai-translate-en2vi"
 vi2en_model = "vinai/vinai-translate-vi2en"  # ← THÊM MODEL VI→EN
+TRANSLATION_DEVICE = os.getenv("TRANSLATION_DEVICE", "cpu")
+TRANSLATION_NUM_BEAMS = int(os.getenv("TRANSLATION_NUM_BEAMS", "1"))
+TRANSLATION_MAX_NEW_TOKENS = int(os.getenv("TRANSLATION_MAX_NEW_TOKENS", "512"))
+TRANSLATION_ENABLE_SENTIMENT = os.getenv("TRANSLATION_ENABLE_SENTIMENT", "false").lower() == "true"
+TRANSLATION_SENTIMENT_MAX_CHARS = int(os.getenv("TRANSLATION_SENTIMENT_MAX_CHARS", "300"))
 
-print("Loading VinAI models...", file=sys.stderr)
+if TRANSLATION_DEVICE == "cuda" and not torch.cuda.is_available():
+    print("[Python] WARNING: CUDA is requested but not available. Falling back to CPU.", file=sys.stderr)
+    TRANSLATION_DEVICE = "cpu"
 
-# Load EN→VI
-tokenizer_en2vi = AutoTokenizer.from_pretrained(en2vi_model, src_lang="en_XX", cache_dir=cache_dir)
-model_en2vi = AutoModelForSeq2SeqLM.from_pretrained(en2vi_model, cache_dir=cache_dir)
+print("[Python] Bắt đầu load tất cả models...", file=sys.stderr)
 
-# Load VI→EN
-tokenizer_vi2en = AutoTokenizer.from_pretrained(vi2en_model, src_lang="vi_VN", cache_dir=cache_dir)
-model_vi2en = AutoModelForSeq2SeqLM.from_pretrained(vi2en_model, cache_dir=cache_dir)
+try:
+    # Tối ưu hóa bộ nhớ và tốc độ với FP16 nếu dùng CUDA
+    torch_dtype = torch.float16 if TRANSLATION_DEVICE == "cuda" else torch.float32
 
-# Load RAG + Sentiment
-search_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-classifier = pipeline("text-classification", model="wonrax/phobert-base-vietnamese-sentiment")
+    # Load EN→VI
+    print(f"[Python] Loading EN→VI model on {TRANSLATION_DEVICE} with {torch_dtype}...", file=sys.stderr)
+    tokenizer_en2vi = AutoTokenizer.from_pretrained(en2vi_model, src_lang="en_XX", cache_dir=cache_dir)
+    model_en2vi = AutoModelForSeq2SeqLM.from_pretrained(en2vi_model, cache_dir=cache_dir, torch_dtype=torch_dtype)
+    model_en2vi.eval()
+    model_en2vi.to(TRANSLATION_DEVICE)
+    print("[Python] ✓ EN→VI model loaded", file=sys.stderr)
+
+    # Load VI→EN
+    print(f"[Python] Loading VI→EN model on {TRANSLATION_DEVICE} with {torch_dtype}...", file=sys.stderr)
+    tokenizer_vi2en = AutoTokenizer.from_pretrained(vi2en_model, src_lang="vi_VN", cache_dir=cache_dir)
+    model_vi2en = AutoModelForSeq2SeqLM.from_pretrained(vi2en_model, cache_dir=cache_dir, torch_dtype=torch_dtype)
+    model_vi2en.eval()
+    model_vi2en.to(TRANSLATION_DEVICE)
+    print("[Python] ✓ VI→EN model loaded", file=sys.stderr)
+
+    # Load RAG
+    print("[Python] Loading RAG model...", file=sys.stderr)
+    search_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+    print("[Python] ✓ RAG model loaded", file=sys.stderr)
+
+    # Load Sentiment
+    classifier = None
+    if TRANSLATION_ENABLE_SENTIMENT:
+        print("[Python] Loading Sentiment model...", file=sys.stderr)
+        classifier = pipeline("text-classification", model="wonrax/phobert-base-vietnamese-sentiment")
+        print("[Python] ✓ Sentiment model loaded", file=sys.stderr)
+
+    # Signal ready
+    print(json.dumps({"type": "READY", "message": "All models loaded successfully"}, ensure_ascii=False))
+    sys.stdout.flush()
+    print("[Python] ✓ Ready signal sent!", file=sys.stderr)
+
+except Exception as e:
+    error_msg = f"[Python] ✗ Model loading failed: {str(e)}"
+    print(error_msg, file=sys.stderr)
+    print(json.dumps({"type": "ERROR", "message": str(e)}, ensure_ascii=False))
+    sys.stdout.flush()
+    sys.exit(1)
 
 def load_knowledge():
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -51,31 +92,28 @@ english_keys = list(data.keys())
 knowledge_embeddings = search_model.encode(english_keys, convert_to_tensor=True) if english_keys else None
 
 # === HÀM DỊCH ===
+def _generate_translation(model, tokenizer, text, target_lang):
+    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=1024)
+    inputs = {k: v.to(TRANSLATION_DEVICE) for k, v in inputs.items()}
+    max_new_tokens = min(TRANSLATION_MAX_NEW_TOKENS, max(64, int(inputs["input_ids"].shape[1] * 2.0)))
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            decoder_start_token_id=tokenizer.lang_code_to_id[target_lang],
+            num_return_sequences=1,
+            num_beams=TRANSLATION_NUM_BEAMS,
+            early_stopping=True,
+            max_new_tokens=max_new_tokens,
+        )
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+
 def translate_en2vi(en_text):
     """Dịch English → Vietnamese"""
-    inputs = tokenizer_en2vi(en_text, return_tensors="pt", padding=True, truncation=True, max_length=1024)
-    outputs = model_en2vi.generate(
-        **inputs,
-        decoder_start_token_id=tokenizer_en2vi.lang_code_to_id["vi_VN"],
-        num_return_sequences=1,
-        num_beams=5,
-        early_stopping=True,
-        max_length=3000
-    )
-    return tokenizer_en2vi.decode(outputs[0], skip_special_tokens=True)
+    return _generate_translation(model_en2vi, tokenizer_en2vi, en_text, "vi_VN")
 
 def translate_vi2en(vi_text):
     """Dịch Vietnamese → English"""
-    inputs = tokenizer_vi2en(vi_text, return_tensors="pt", padding=True, truncation=True, max_length=1024)
-    outputs = model_vi2en.generate(
-        **inputs,
-        decoder_start_token_id=tokenizer_vi2en.lang_code_to_id["en_XX"],
-        num_return_sequences=1,
-        num_beams=5,
-        early_stopping=True,
-        max_length=3000
-    )
-    return tokenizer_vi2en.decode(outputs[0], skip_special_tokens=True)
+    return _generate_translation(model_vi2en, tokenizer_vi2en, vi_text, "en_XX")
 
 # === HÀM CHÍNH ===
 def smart_tourism_ai(user_input, method='en2vi'):
@@ -99,14 +137,18 @@ def smart_tourism_ai(user_input, method='en2vi'):
     
     # Bước 3: PHÂN TÍCH CẢM XÚC (nếu là VI)
     sentiment = None
-    if method == 'en2vi':
+    if (
+        method == 'en2vi'
+        and classifier is not None
+        and len(final_text) <= TRANSLATION_SENTIMENT_MAX_CHARS
+    ):
         try:
             analysis = classifier(final_text)[0]
             sentiment = {
                 "label": analysis['label'],
                 "score": round(analysis['score'], 2)
             }
-        except:
+        except Exception:
             sentiment = None
     
     return {

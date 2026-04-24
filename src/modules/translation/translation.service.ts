@@ -1,4 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 
@@ -6,6 +7,8 @@ import * as path from 'path';
 export class TranslationService implements OnModuleInit, OnModuleDestroy {
     private pythonProcess: ChildProcess | null = null;
     private messageQueue: Array<{ resolve: Function; reject: Function }> = [];
+
+    constructor(private readonly configService: ConfigService) {}
 
     async onModuleInit() {
         this.startPythonProcess();
@@ -98,4 +101,4 @@ export class TranslationService implements OnModuleInit, OnModuleDestroy {
             this.pythonProcess.kill();
         }
     }
-}   
+}

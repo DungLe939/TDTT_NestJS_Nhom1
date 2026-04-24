@@ -22,9 +22,13 @@ async function bootstrap() {
   // Đừng bao giờ xóa dòng này nếu bạn muốn test API trên internet nhé!
   // ----------------------------------------------------------------------
   app.enableCors({
-    origin: '*',
+    origin: (origin, callback) => {
+      // Cho phép tất cả các origin trong môi trường development, 
+      // nhưng trả về chính origin đó thay vì '*' để thỏa mãn credentials: true
+      callback(null, true);
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: '*',
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Pinggy-No-Screen', 'x-pinggy-no-screen', 'Accept', 'Origin'],
     credentials: true,
   });
 
@@ -44,7 +48,12 @@ async function bootstrap() {
   );
 
   // Lắng nghe ứng dụng trên PORT từ file .env hoặc mặc định là 3000
-  await app.listen(process.env.PORT ?? 3000);
+  const server = app.getHttpServer();
+  server.timeout = 300000; // 5 phút
+  server.keepAliveTimeout = 305000;
+
+  await app.listen(process.env.PORT || 3000);
+  console.log(`Application is running on: ${await app.getUrl()}`);
 }
 
 // Chạy hàm bootstrap để khởi động server

@@ -17,9 +17,9 @@ export class GeminiGenerateScheduleHelper {
     const apiKey = process.env.GEMINI_API_KEY!;
     this.genAI = new GoogleGenerativeAI(apiKey);
 
-    // Sử dụng mô hình gemini-1.5-flash-8b (phiên bản nhanh và tiết kiệm)
+    // Sử dụng mô hình gemini-flash-latest (phiên bản nhanh và tiết kiệm)
     this.model = this.genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash-8b',
+      model: 'gemini-flash-latest',
     });
   }
 

@@ -1,0 +1,20 @@
+# OCR Dependencies
+easyocr>=1.7.0
+paddleocr>=2.7.0
+paddlepaddle>=2.5.0
+vietocr>=0.3.13
+opencv-python>=4.8.0
+pillow>=9.0.0
+
+# Machine Learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Utilities
+numpy>=1.24.0
+scipy>=1.10.0
+scikit-image>=0.21.0
+PyYAML>=6.0
+
+# Optional: For debugging
+pydantic>=2.0.0
