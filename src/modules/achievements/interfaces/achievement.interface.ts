@@ -98,14 +98,6 @@ export interface UserRewardResolved extends UserReward {
     reward: Reward | null;
 }
 
-export interface UserBadge {
-    id: string;
-    description: string;
-    icon?: string;
-    userId: string;
-    earnedAt: Date;
-}
-
 export interface UserStats {
     userId: string;
     xp: number;
@@ -123,7 +115,7 @@ export interface Level {
 }
 
 
-//_________________________const_____________________
+//____________________constants_____________________
 
 
 export const LEVELS: Level[] = [

@@ -9,7 +9,6 @@ import {
     RewardType,
     UserReward,
     UserRewardResolved,
-    UserBadge,
     XP_PER_ACTIVITY
 } from './interfaces/achievement.interface';
 import { ProgressTrackerService } from './progress-tracker.service';
@@ -44,7 +43,7 @@ export class AchievementService {
     *   - Feature 3  (MENU_TRANSLATED)
     *   - Feature 4  (GROUP_TASTE_USED)
     *
-    * Triggers nội bộ: getActiveAchievements -> doesEventMatchCondition -> incrementProgress -> issueReward -> notifyUser.
+    * Triggers nội bộ: getActiveAchievements -> doesEventMatchCondition -> incrementProgress -> issueReward.
     *
     * Ví dụ: call khi user thực hiện food scan (Feature 2):
     *   achievementService.handleActivityEvent({
@@ -218,21 +217,7 @@ export class AchievementService {
         if (rewardData?.type === 'points') {
             await this.userStatsService.updateUserStats(userId, { xp: rewardData.value });
         }
-
-        // thông báo cho user
-        await this.notifyUser(userId, achievementId, rewardDocId);
     }
-
-    /**
-     * TODO: Tích hợp với hệ thống thông báo chung ở đây trong tương lai
-     */
-    private async notifyUser(userId: string, achievementId: string, userRewardId: string): Promise<void> {
-        this.logger.log(`Notify user ${userId}: completed achievement ${achievementId}, rewarded ${userRewardId}`);
-
-        // TODO: thông báo đã nhận reward cho user
-    }
-
-
 
     // =========================================================================
     // API Endpoint Methods
