@@ -356,10 +356,14 @@ export class SchedulerService {
     userLng: number,
     destLat: number,
     destLng: number,
+    mode: string = 'driving',
+    steps: boolean = false,
   ) {
+    let url = '';
     try {
       // OSRM API: lng,lat;lng,lat
-      const url = `http://router.project-osrm.org/route/v1/driving/${userLng},${userLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+      const stepsParam = steps ? '&steps=true' : '';
+      url = `http://router.project-osrm.org/route/v1/${mode}/${userLng},${userLat};${destLng},${destLat}?overview=full&geometries=geojson${stepsParam}`;
       const response = await axios.get(url);
 
       if (
@@ -372,11 +376,16 @@ export class SchedulerService {
           distance: route.distance, // khoảng cách: là đường đi ngắn nhất(không phải khoảng cách theo đường chim bay)
           duration: route.duration, // Thời gian đi dự kiến
           geometry: route.geometry, // GeoJSON LineString : danh sách chi tiết các tọa độ trên đường đi
+          steps: steps && route.legs && route.legs[0] ? route.legs[0].steps : undefined,
         };
       }
+      
+      require('fs').appendFileSync('osrm_error.log', new Date().toISOString() + ' - No Route Found cho: ' + url + '\n');
+      console.log('OSRM No Route:', url);
       return null;
     } catch (error) {
-      console.error('Lỗi OSRM Routing:', error);
+      require('fs').appendFileSync('osrm_error.log', new Date().toISOString() + ' - Lỗi OSRM Routing: ' + (error.response ? JSON.stringify(error.response.data) + ' URL: ' + url : error.message) + '\n');
+      console.error('Lỗi OSRM Routing:', error.response?.data || error.message);
       return null;
     }
   }

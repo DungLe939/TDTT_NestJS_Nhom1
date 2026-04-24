@@ -153,6 +153,8 @@ export class SchedulerController {
         routeDto.userLng,
         routeDto.destLat,
         routeDto.destLng,
+        routeDto.mode,
+        routeDto.steps,
       );
 
       if (!result) {
