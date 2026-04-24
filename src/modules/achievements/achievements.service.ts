@@ -175,7 +175,6 @@ export class AchievementService {
 
     /**
      * Tạo một UserReward record khi một achievement hoàn thành.
-     * Idempotent — dùng deterministic document ID để tránh duplicate reward.
      */
     private async issueReward(userId: string, achievementId: string, rewardId: string): Promise<void> {
         // Dùng deterministic doc ID thay vì auto-gen → ngăn race condition duplicate
@@ -210,25 +209,14 @@ export class AchievementService {
             userReward.expiresAt = expiresAt;
         }
 
-        // ghi reward vào database cho user (dùng set thay vì add → idempotent)
+        // ghi reward vào database cho user
         await docRef.set(userReward);
 
         const rewardData = rewardDoc.data();
 
-        // Update userStats (xp, badge)
+        // Update userStats (xp)
         if (rewardData?.type === 'points') {
             await this.userStatsService.updateUserStats(userId, { xp: rewardData.value });
-
-        } else if (rewardData?.type === 'badge') {
-
-            const userBadges: UserBadge = {
-                id: rewardDoc.id,
-                description: rewardData.description,
-                icon: rewardData.icon ?? null,
-                userId: userId,
-                earnedAt: new Date(),
-            };
-            await this.userStatsService.updateUserStats(userId, { badges: [userBadges] });
         }
 
         // thông báo cho user
