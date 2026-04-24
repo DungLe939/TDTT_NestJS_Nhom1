@@ -380,6 +380,7 @@ export class ScoringHelper {
           price: m.price,
           category: (m.name.split(' ')[0] || 'Khác').toLowerCase(),
           score: Math.floor(Math.random() * 50) + 50,
+          imageUrl: m.imageUrl || '',
         })),
         scores: {
           breakfast: { score: Math.floor(Math.random() * 50) + 50 },
@@ -392,7 +393,7 @@ export class ScoringHelper {
 
     // Tìm thêm các quán có tiềm năng làm bữa phụ (Snacks)
     scoredRestaurants.forEach((res) => {
-      const snacksInRes = res.menu?.filter((m: any) => {
+      const snacksInRes = (res.menu || []).filter((m: any) => {
         const nameLower = m.name?.toLowerCase() || '';
         return (
           nameLower.includes('cafe') ||
@@ -402,6 +403,14 @@ export class ScoringHelper {
           nameLower.includes('ốc') ||
           nameLower.includes('chè')
         );
+      }).map((m: any) => {
+        // Nếu AI trả về thiếu ảnh, ta lấy lại từ menu gốc của quán
+        if (!m.imageUrl) {
+          const original = dayPlan.cluster.restaurants.find((r: any) => r.id === res.id);
+          const originalDish = original?.menu?.find((od: any) => od.name === m.name);
+          if (originalDish?.imageUrl) m.imageUrl = originalDish.imageUrl;
+        }
+        return m;
       });
       if (snacksInRes && snacksInRes.length > 0) {
         const original = dayPlan.cluster.restaurants.find(

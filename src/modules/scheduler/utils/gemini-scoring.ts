@@ -60,7 +60,7 @@ export class GeminiScoringHelper {
             [{
                 "id": "...",
                 "restaurantName": "...",
-                "menu": [{ "name": "...", "price": number, "score": number, "category": "...", "isSnack": boolean }],
+                "menu": [{ "name": "...", "price": number, "score": number, "category": "...", "isSnack": boolean, "imageUrl": "..." }],
                 "scores": {
                     "breakfast": { "score": number, "suggestedTime": "HH:mm" },
                     "lunch": { "score": number, "suggestedTime": "HH:mm" },
