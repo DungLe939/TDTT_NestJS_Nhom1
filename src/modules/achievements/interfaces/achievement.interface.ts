@@ -113,7 +113,6 @@ export interface UserStats {
     levelTitle: string;
     xpToNextLevel: number;
     progressPercent: number;
-    badges: UserBadge[];
 }
 
 export interface Level {
