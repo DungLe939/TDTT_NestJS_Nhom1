@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { db } from '../../providers/firebase.provider';
-import { UserStats, UserBadge, ActivityEvent, LEVELS, XP_PER_ACTIVITY, ActivityEventType } from './interfaces/achievement.interface';
+import { UserStats, UserBadge, LEVELS } from './interfaces/achievement.interface';
 
 @Injectable()
 export class UserStatsService {
@@ -27,6 +27,9 @@ export class UserStatsService {
             userId,
             xp: 0,
             level: 1,
+            levelTitle: LEVELS[0].title,
+            xpToNextLevel: LEVELS[0].maxXp,
+            progressPercent: 0,
             badges: [],
         };
         await db.collection(this.collectionName).doc(userId).set(userStats);
@@ -50,10 +53,14 @@ export class UserStatsService {
             updateData.xp = totalXp;
             const newLevel = [...LEVELS].reverse().find(l => totalXp >= l.minXp) ?? LEVELS[0];
             updateData.level = newLevel.level;
+            updateData.xpToNextLevel = newLevel.maxXp - totalXp;
+            updateData.progressPercent = ((totalXp - newLevel.minXp) / (newLevel.maxXp - newLevel.minXp)) * 100;
+            updateData.levelTitle = newLevel.title;
         }
         if (badges !== undefined && badges.length > 0) {
             updateData.badges = [...(snap.data()?.badges || []), ...badges];
         }
+
 
         if (Object.keys(updateData).length > 0) {
             await docRef.update(updateData);
