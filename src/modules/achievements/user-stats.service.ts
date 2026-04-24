@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { db } from '../../providers/firebase.provider';
-import { UserStats, UserBadge, LEVELS } from './interfaces/achievement.interface';
+import { UserStats, LEVELS } from './interfaces/achievement.interface';
 
 @Injectable()
 export class UserStatsService {
