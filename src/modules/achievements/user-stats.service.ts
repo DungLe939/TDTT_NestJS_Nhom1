@@ -30,7 +30,6 @@ export class UserStatsService {
             levelTitle: LEVELS[0].title,
             xpToNextLevel: LEVELS[0].maxXp,
             progressPercent: 0,
-            badges: [],
         };
         await db.collection(this.collectionName).doc(userId).set(userStats);
         return userStats;
@@ -39,7 +38,7 @@ export class UserStatsService {
     /**
      * Cập nhật thông tin liên quan đến thành tích của user
      */
-    async updateUserStats(userId: string, { xp, badges }: { xp?: number, badges?: UserBadge[] }): Promise<UserStats> {
+    async updateUserStats(userId: string, { xp }: { xp?: number }): Promise<UserStats> {
         const docRef = db.collection(this.collectionName).doc(userId);
         const snap = await docRef.get();
         if (!snap.exists) {
@@ -57,10 +56,6 @@ export class UserStatsService {
             updateData.progressPercent = ((totalXp - newLevel.minXp) / (newLevel.maxXp - newLevel.minXp)) * 100;
             updateData.levelTitle = newLevel.title;
         }
-        if (badges !== undefined && badges.length > 0) {
-            updateData.badges = [...(snap.data()?.badges || []), ...badges];
-        }
-
 
         if (Object.keys(updateData).length > 0) {
             await docRef.update(updateData);
