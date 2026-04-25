@@ -66,6 +66,14 @@ export interface CreateShopVariables {
   longitude: number;
 }
 
+export interface DeletePlanCacheData {
+  planCache_delete?: PlanCache_Key | null;
+}
+
+export interface DeletePlanCacheVariables {
+  guestId: string;
+}
+
 export interface FoodItem_Key {
   id: UUIDString;
   __typename?: 'FoodItem_Key';
@@ -96,8 +104,8 @@ export interface GetFoodDetailData {
       priceMin?: number | null;
       priceMax?: number | null;
       priceDisplay?: string | null;
-      latitude: number;
-      longitude: number;
+      latitude?: number | null;
+      longitude?: number | null;
     } & Shop_Key;
       category: {
         id: UUIDString;
@@ -109,6 +117,23 @@ export interface GetFoodDetailData {
 
 export interface GetFoodDetailVariables {
   id: UUIDString;
+}
+
+export interface GetPlanCacheData {
+  planCache?: {
+    id: string;
+    rawRestaurants?: unknown | null;
+    orderedPlan?: unknown | null;
+    mealBudgetConfig?: unknown | null;
+    preferences?: unknown | null;
+    usedCategories: string[];
+    dayScores?: unknown | null;
+    updatedAt: TimestampString;
+  } & PlanCache_Key;
+}
+
+export interface GetPlanCacheVariables {
+  guestId: string;
 }
 
 export interface GetShopDetailData {
@@ -126,8 +151,8 @@ export interface GetShopDetailData {
     priceMin?: number | null;
     priceMax?: number | null;
     priceDisplay?: string | null;
-    latitude: number;
-    longitude: number;
+    latitude?: number | null;
+    longitude?: number | null;
     foodItems_on_shop: ({
       id: UUIDString;
       name: string;
@@ -167,8 +192,8 @@ export interface ListAllShopsWithMenuData {
     priceMin?: number | null;
     priceMax?: number | null;
     priceDisplay?: string | null;
-    latitude: number;
-    longitude: number;
+    latitude?: number | null;
+    longitude?: number | null;
     foodItems_on_shop: ({
       id: UUIDString;
       name: string;
@@ -269,8 +294,8 @@ export interface ListShopsData {
     priceDisplay?: string | null;
     openTime?: string | null;
     closeTime?: string | null;
-    latitude: number;
-    longitude: number;
+    latitude?: number | null;
+    longitude?: number | null;
   } & Shop_Key)[];
 }
 
@@ -279,10 +304,82 @@ export interface ListShopsVariables {
   offset?: number | null;
 }
 
+export interface PlanCache_Key {
+  id: string;
+  __typename?: 'PlanCache_Key';
+}
+
 export interface Shop_Key {
   id: UUIDString;
   __typename?: 'Shop_Key';
 }
+
+export interface UpdateDayScoresData {
+  planCache_update?: PlanCache_Key | null;
+}
+
+export interface UpdateDayScoresVariables {
+  guestId: string;
+  dayScores?: unknown | null;
+}
+
+export interface UpdateUsedCategoriesData {
+  planCache_update?: PlanCache_Key | null;
+}
+
+export interface UpdateUsedCategoriesVariables {
+  guestId: string;
+  usedCategories: string[];
+}
+
+export interface UpsertPlanCacheData {
+  planCache_upsert: PlanCache_Key;
+}
+
+export interface UpsertPlanCacheVariables {
+  guestId: string;
+  rawRestaurants?: unknown | null;
+  orderedPlan?: unknown | null;
+  mealBudgetConfig?: unknown | null;
+  preferences?: unknown | null;
+  usedCategories: string[];
+  dayScores?: unknown | null;
+}
+
+/** Generated Node Admin SDK operation action function for the 'CreateCategory' Mutation. Allow users to execute without passing in DataConnect. */
+export function createCategory(dc: DataConnect, vars: CreateCategoryVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateCategoryData>>;
+/** Generated Node Admin SDK operation action function for the 'CreateCategory' Mutation. Allow users to pass in custom DataConnect instances. */
+export function createCategory(vars: CreateCategoryVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateCategoryData>>;
+
+/** Generated Node Admin SDK operation action function for the 'CreateShop' Mutation. Allow users to execute without passing in DataConnect. */
+export function createShop(dc: DataConnect, vars: CreateShopVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateShopData>>;
+/** Generated Node Admin SDK operation action function for the 'CreateShop' Mutation. Allow users to pass in custom DataConnect instances. */
+export function createShop(vars: CreateShopVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateShopData>>;
+
+/** Generated Node Admin SDK operation action function for the 'CreateFoodItem' Mutation. Allow users to execute without passing in DataConnect. */
+export function createFoodItem(dc: DataConnect, vars: CreateFoodItemVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateFoodItemData>>;
+/** Generated Node Admin SDK operation action function for the 'CreateFoodItem' Mutation. Allow users to pass in custom DataConnect instances. */
+export function createFoodItem(vars: CreateFoodItemVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateFoodItemData>>;
+
+/** Generated Node Admin SDK operation action function for the 'UpsertPlanCache' Mutation. Allow users to execute without passing in DataConnect. */
+export function upsertPlanCache(dc: DataConnect, vars: UpsertPlanCacheVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<UpsertPlanCacheData>>;
+/** Generated Node Admin SDK operation action function for the 'UpsertPlanCache' Mutation. Allow users to pass in custom DataConnect instances. */
+export function upsertPlanCache(vars: UpsertPlanCacheVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<UpsertPlanCacheData>>;
+
+/** Generated Node Admin SDK operation action function for the 'DeletePlanCache' Mutation. Allow users to execute without passing in DataConnect. */
+export function deletePlanCache(dc: DataConnect, vars: DeletePlanCacheVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<DeletePlanCacheData>>;
+/** Generated Node Admin SDK operation action function for the 'DeletePlanCache' Mutation. Allow users to pass in custom DataConnect instances. */
+export function deletePlanCache(vars: DeletePlanCacheVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<DeletePlanCacheData>>;
+
+/** Generated Node Admin SDK operation action function for the 'UpdateDayScores' Mutation. Allow users to execute without passing in DataConnect. */
+export function updateDayScores(dc: DataConnect, vars: UpdateDayScoresVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<UpdateDayScoresData>>;
+/** Generated Node Admin SDK operation action function for the 'UpdateDayScores' Mutation. Allow users to pass in custom DataConnect instances. */
+export function updateDayScores(vars: UpdateDayScoresVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<UpdateDayScoresData>>;
+
+/** Generated Node Admin SDK operation action function for the 'UpdateUsedCategories' Mutation. Allow users to execute without passing in DataConnect. */
+export function updateUsedCategories(dc: DataConnect, vars: UpdateUsedCategoriesVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<UpdateUsedCategoriesData>>;
+/** Generated Node Admin SDK operation action function for the 'UpdateUsedCategories' Mutation. Allow users to pass in custom DataConnect instances. */
+export function updateUsedCategories(vars: UpdateUsedCategoriesVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<UpdateUsedCategoriesData>>;
 
 /** Generated Node Admin SDK operation action function for the 'ListCategories' Query. Allow users to execute without passing in DataConnect. */
 export function listCategories(dc: DataConnect, options?: OperationOptions): Promise<ExecuteOperationResponse<ListCategoriesData>>;
@@ -319,18 +416,8 @@ export function listAllShopsWithMenu(dc: DataConnect, options?: OperationOptions
 /** Generated Node Admin SDK operation action function for the 'ListAllShopsWithMenu' Query. Allow users to pass in custom DataConnect instances. */
 export function listAllShopsWithMenu(options?: OperationOptions): Promise<ExecuteOperationResponse<ListAllShopsWithMenuData>>;
 
-/** Generated Node Admin SDK operation action function for the 'CreateCategory' Mutation. Allow users to execute without passing in DataConnect. */
-export function createCategory(dc: DataConnect, vars: CreateCategoryVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateCategoryData>>;
-/** Generated Node Admin SDK operation action function for the 'CreateCategory' Mutation. Allow users to pass in custom DataConnect instances. */
-export function createCategory(vars: CreateCategoryVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateCategoryData>>;
-
-/** Generated Node Admin SDK operation action function for the 'CreateShop' Mutation. Allow users to execute without passing in DataConnect. */
-export function createShop(dc: DataConnect, vars: CreateShopVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateShopData>>;
-/** Generated Node Admin SDK operation action function for the 'CreateShop' Mutation. Allow users to pass in custom DataConnect instances. */
-export function createShop(vars: CreateShopVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateShopData>>;
-
-/** Generated Node Admin SDK operation action function for the 'CreateFoodItem' Mutation. Allow users to execute without passing in DataConnect. */
-export function createFoodItem(dc: DataConnect, vars: CreateFoodItemVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateFoodItemData>>;
-/** Generated Node Admin SDK operation action function for the 'CreateFoodItem' Mutation. Allow users to pass in custom DataConnect instances. */
-export function createFoodItem(vars: CreateFoodItemVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateFoodItemData>>;
+/** Generated Node Admin SDK operation action function for the 'GetPlanCache' Query. Allow users to execute without passing in DataConnect. */
+export function getPlanCache(dc: DataConnect, vars: GetPlanCacheVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<GetPlanCacheData>>;
+/** Generated Node Admin SDK operation action function for the 'GetPlanCache' Query. Allow users to pass in custom DataConnect instances. */
+export function getPlanCache(vars: GetPlanCacheVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<GetPlanCacheData>>;
 

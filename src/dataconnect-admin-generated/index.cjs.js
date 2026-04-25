@@ -7,6 +7,55 @@ const connectorConfig = {
 };
 exports.connectorConfig = connectorConfig;
 
+function createCategory(dcOrVarsOrOptions, varsOrOptions, options) {
+  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
+  dcInstance.useGen(true);
+  return dcInstance.executeMutation('CreateCategory', inputVars, inputOpts);
+}
+exports.createCategory = createCategory;
+
+function createShop(dcOrVarsOrOptions, varsOrOptions, options) {
+  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
+  dcInstance.useGen(true);
+  return dcInstance.executeMutation('CreateShop', inputVars, inputOpts);
+}
+exports.createShop = createShop;
+
+function createFoodItem(dcOrVarsOrOptions, varsOrOptions, options) {
+  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
+  dcInstance.useGen(true);
+  return dcInstance.executeMutation('CreateFoodItem', inputVars, inputOpts);
+}
+exports.createFoodItem = createFoodItem;
+
+function upsertPlanCache(dcOrVarsOrOptions, varsOrOptions, options) {
+  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
+  dcInstance.useGen(true);
+  return dcInstance.executeMutation('UpsertPlanCache', inputVars, inputOpts);
+}
+exports.upsertPlanCache = upsertPlanCache;
+
+function deletePlanCache(dcOrVarsOrOptions, varsOrOptions, options) {
+  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
+  dcInstance.useGen(true);
+  return dcInstance.executeMutation('DeletePlanCache', inputVars, inputOpts);
+}
+exports.deletePlanCache = deletePlanCache;
+
+function updateDayScores(dcOrVarsOrOptions, varsOrOptions, options) {
+  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
+  dcInstance.useGen(true);
+  return dcInstance.executeMutation('UpdateDayScores', inputVars, inputOpts);
+}
+exports.updateDayScores = updateDayScores;
+
+function updateUsedCategories(dcOrVarsOrOptions, varsOrOptions, options) {
+  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
+  dcInstance.useGen(true);
+  return dcInstance.executeMutation('UpdateUsedCategories', inputVars, inputOpts);
+}
+exports.updateUsedCategories = updateUsedCategories;
+
 function listCategories(dcOrOptions, options) {
   const { dc: dcInstance, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrOptions, options, undefined);
   dcInstance.useGen(true);
@@ -56,24 +105,10 @@ function listAllShopsWithMenu(dcOrOptions, options) {
 }
 exports.listAllShopsWithMenu = listAllShopsWithMenu;
 
-function createCategory(dcOrVarsOrOptions, varsOrOptions, options) {
+function getPlanCache(dcOrVarsOrOptions, varsOrOptions, options) {
   const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
   dcInstance.useGen(true);
-  return dcInstance.executeMutation('CreateCategory', inputVars, inputOpts);
+  return dcInstance.executeQuery('GetPlanCache', inputVars, inputOpts);
 }
-exports.createCategory = createCategory;
-
-function createShop(dcOrVarsOrOptions, varsOrOptions, options) {
-  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
-  dcInstance.useGen(true);
-  return dcInstance.executeMutation('CreateShop', inputVars, inputOpts);
-}
-exports.createShop = createShop;
-
-function createFoodItem(dcOrVarsOrOptions, varsOrOptions, options) {
-  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
-  dcInstance.useGen(true);
-  return dcInstance.executeMutation('CreateFoodItem', inputVars, inputOpts);
-}
-exports.createFoodItem = createFoodItem;
+exports.getPlanCache = getPlanCache;
 

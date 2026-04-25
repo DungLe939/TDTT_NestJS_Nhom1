@@ -425,7 +425,7 @@ export class SchedulerService {
             : (b.scores?.[mealType] ?? 0);
         return scoreB - scoreA;
       })
-      .slice(0, 20);
+      .slice(0, 50);
 
     const refLat =
       userLat || cache.orderedPlan[dayIndex]?.cluster?.centroid[1];
@@ -483,7 +483,7 @@ export class SchedulerService {
         if (b.resScore !== a.resScore) return b.resScore - a.resScore;
         return a.distance - b.distance;
       })
-      .slice(0, 30);
+      .slice(0, 50);
 
     return {
       success: true,
