@@ -67,6 +67,9 @@ export interface TransformedRestaurant {
   shopUrl?: string;
 }
 
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { listAllShopsWithMenu } from '@dataconnect/admin-generated';
+
 @Injectable()
 export class ShopeeFoodLoader implements OnModuleInit {
   private restaurants: TransformedRestaurant[] = [];
@@ -74,73 +77,127 @@ export class ShopeeFoodLoader implements OnModuleInit {
 
   /**
    * Tự động được gọi khi NestJS module khởi tạo xong.
-   * Load dữ liệu từ file JSON vào bộ nhớ.
+   * Load dữ liệu từ Firebase Data Connect (PostgreSQL) vào bộ nhớ.
    */
-  onModuleInit() {
-    this.loadData();
+  async onModuleInit() {
+    await this.loadData();
   }
 
   /**
-   * Đọc file shopeefood_geocoded.json và transform sang format RestaurantDto.
+   * Truy vấn Data Connect để lấy toàn bộ danh sách quán và món ăn.
    */
-  private loadData() {
+  private async loadData() {
     try {
-      const filePath = path.join(
-        process.cwd(),
-        'data',
-        'shopeefood_geocoded.json',
-      );
-
-      if (!fs.existsSync(filePath)) {
-        console.error(
-          '❌ [ShopeeFoodLoader] Không tìm thấy file shopeefood_geocoded.json!',
-        );
-        console.error(
-          '   Hãy chạy: node scripts/geocode-shops-v2.mjs để tạo file này.',
-        );
-        return;
+      // 1. Khởi tạo Firebase Admin nếu chưa có
+      if (getApps().length === 0) {
+        // Cấu hình Emulator nếu chạy local (được định nghĩa trong .env hoặc mặc định)
+        if (process.env.NODE_ENV !== 'production') {
+          process.env.FIREBASE_DATA_CONNECT_EMULATOR_HOST = '127.0.0.1:9399';
+        }
+        initializeApp({
+          projectId: 'smart-tourism-abf26',
+        });
       }
 
-      const rawData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      const shops: ShopeeFoodShop[] = rawData.shops;
+      console.log('⏳ [ShopeeFoodLoader] Đang tải dữ liệu từ PostgreSQL qua Firebase Data Connect...');
 
-      this.restaurants = shops.map((shop) => this.transformShop(shop));
+      // 2. Lấy dữ liệu qua GraphQL Query đã sinh ra
+      const res = await listAllShopsWithMenu();
+      const shops = res.data.shops;
+
+      if (!shops || shops.length === 0) {
+         console.warn('⚠️ [ShopeeFoodLoader] Không có quán ăn nào trong Database! Dữ liệu trống.');
+         return;
+      }
+
+      // 3. Transform dữ liệu
+      this.restaurants = shops.map((shop: any) => this.transformDbShop(shop));
       this.isLoaded = true;
 
       console.log(
-        `✅ [ShopeeFoodLoader] Đã load ${this.restaurants.length} quán ăn từ ShopeeFood.`,
+        `✅ [ShopeeFoodLoader] Đã load ${this.restaurants.length} quán ăn từ Database.`,
       );
       console.log(
         `   📊 Tổng cộng ${this.restaurants.reduce((sum, r) => sum + r.menu.length, 0)} món ăn.`,
       );
-      console.log(
-        `   📍 Geocode stats: ${rawData.geocode_stats?.nominatim_exact || 0} chính xác, ${rawData.geocode_stats?.district_fallback || 0} fallback quận.`,
-      );
-    } catch (error) {
+    } catch (error: any) {
       console.error(
-        '❌ [ShopeeFoodLoader] Lỗi khi load dữ liệu:',
+        '❌ [ShopeeFoodLoader] Lỗi khi load dữ liệu từ Database:',
         error.message,
       );
+      
+      console.warn('⚠️ [ShopeeFoodLoader] Fallback: Đang tải dữ liệu từ file JSON cục bộ...');
+      try {
+        const filePath = require('path').join(process.cwd(), 'data', 'shopeefood_geocoded.json');
+        if (require('fs').existsSync(filePath)) {
+          const rawData = JSON.parse(require('fs').readFileSync(filePath, 'utf-8'));
+          const fallbackShops = rawData.shops;
+          this.restaurants = fallbackShops.map((s: any) => this.transformJsonShop(s));
+          this.isLoaded = true;
+          console.log(`✅ [ShopeeFoodLoader] Đã load fallback ${this.restaurants.length} quán ăn từ JSON.`);
+        }
+      } catch (fallbackError: any) {
+        console.error('❌ [ShopeeFoodLoader] Fallback thất bại:', fallbackError.message);
+      }
     }
   }
 
   /**
-   * Transform một shop từ ShopeeFood sang format tương thích RestaurantDto.
-   * Mapping:
-   * - shop.id → id (unique identifier)
-   * - shop.name → name
-   * - shop.address → address
-   * - shop.location → location (GeoJSON Point)
-   * - shop.price_range → priceRange (1-3)
-   * - shop.rating → rating
-   * - shop.foods → menu (array of MenuItemDto)
-   * - shop.opening_hours → openingHours
+   * Transform từ dữ liệu JSON (dành cho fallback)
    */
-  private transformShop(shop: ShopeeFoodShop): TransformedRestaurant {
-    // Xác định phân khúc giá dựa trên price_range
-    let priceRange = 2; // Mặc định: Trung bình
+  private transformJsonShop(shop: any): TransformedRestaurant {
+    let priceRange = 2; 
     if (shop.price_range) {
       const avgPrice = (shop.price_range.min + shop.price_range.max) / 2;
+      if (avgPrice <= 40000) priceRange = 1;
+      else if (avgPrice <= 100000) priceRange = 2;
+      else priceRange = 3;
+    }
+
+    const snackKeywords = ['trà', 'cà phê', 'cafe', 'coffee', 'sinh tố', 'nước ép', 'kem', 'bánh', 'chè', 'sữa', 'smoothie', 'juice', 'trân châu', 'matcha', 'yogurt'];
+    const menu = (shop.menu || shop.foods || []).map((food: any) => {
+      const nameLower = food.name.toLowerCase();
+      const isSnack = snackKeywords.some((kw) => nameLower.includes(kw));
+      return {
+        name: food.name,
+        price: food.price || food.price_value || 0,
+        description: food.description || '',
+        category: food.category || food.group_name || 'Khác',
+        isSnack,
+        imageUrl: food.image_url || '',
+      };
+    });
+
+    const openingHours = (shop.opening_hours && shop.opening_hours.open && shop.opening_hours.close)
+      ? shop.opening_hours
+      : { open: '07:00', close: '22:00' };
+
+    return {
+      id: `shopee_${shop.id}`,
+      name: shop.name,
+      address: shop.address,
+      location: shop.location,
+      priceRange,
+      price_range: shop.price_range,
+      rating: shop.rating || 4.0,
+      menu,
+      openingHours,
+      coverImage: shop.cover_image || '',
+      shopUrl: shop.url || '',
+    };
+  }
+
+  /**
+   * Transform một shop từ Database sang format tương thích RestaurantDto.
+   */
+  private transformDbShop(shop: any): TransformedRestaurant {
+    // Xác định phân khúc giá dựa trên priceMin và priceMax
+    let priceRange = 2; // Mặc định: Trung bình
+    const min = shop.priceMin || 0;
+    const max = shop.priceMax || 0;
+    
+    if (min > 0 || max > 0) {
+      const avgPrice = (min + max) / 2;
       if (avgPrice <= 40000) priceRange = 1; // Rẻ
       else if (avgPrice <= 100000) priceRange = 2; // Trung bình
       else priceRange = 3; // Sang
@@ -166,36 +223,44 @@ export class ShopeeFoodLoader implements OnModuleInit {
     ];
 
     // Transform menu items
-    const menu = (shop.foods || []).map((food) => {
+    const menu = (shop.foodItems_on_shop || []).map((food: any) => {
       const nameLower = food.name.toLowerCase();
       const isSnack = snackKeywords.some((kw) => nameLower.includes(kw));
 
       return {
         name: food.name,
-        price: food.price || food.price_value || 0,
+        price: food.price || 0,
         description: food.description || '',
-        category: food.category || food.group_name || 'Khác',
+        category: food.category?.name || food.groupName || 'Khác',
         isSnack,
-        imageUrl: food.image_url || '',
+        imageUrl: food.imageUrl || '',
       };
     });
 
-    // Kiểm tra và xử lý giờ mở cửa (Fallback nếu dữ liệu trống)
-    const openingHours = (shop.opening_hours && shop.opening_hours.open && shop.opening_hours.close)
-      ? shop.opening_hours
-      : { open: '07:00', close: '22:00' };
+    // Kiểm tra và xử lý giờ mở cửa
+    const openingHours = {
+      open: shop.openTime || '07:00',
+      close: shop.closeTime || '22:00',
+    };
 
     return {
-      id: `shopee_${shop.id}`,
+      id: shop.externalId || shop.id,
       name: shop.name,
       address: shop.address,
-      location: shop.location,
+      location: {
+        type: 'Point',
+        coordinates: [shop.longitude || 106.660172, shop.latitude || 10.762622],
+      },
       priceRange,
-      price_range: shop.price_range,
+      price_range: {
+        min,
+        max,
+        display: shop.priceDisplay || '',
+      },
       rating: shop.rating || 4.0,
       menu,
       openingHours,
-      coverImage: shop.cover_image || '',
+      coverImage: shop.coverImage || '',
       shopUrl: shop.url || '',
     };
   }
