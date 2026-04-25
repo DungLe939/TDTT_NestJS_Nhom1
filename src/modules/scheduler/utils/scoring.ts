@@ -11,6 +11,31 @@ export class ScoringHelper {
   ) { }
 
   /**
+   * Hàm gán category dự phòng dựa trên từ khóa trong tên món ăn.
+   * Sử dụng đúng danh sách 8 nhóm category khái quát giống như Gemini AI.
+   * Dùng khi Gemini bị lỗi/timeout để đảm bảo giao diện vẫn hiển thị category có nghĩa.
+   */
+  static getFallbackCategory(dishName: string): string {
+    const n = (dishName || '').toLowerCase();
+    // Món nước: phở, bún, mì, hủ tiếu, miến...
+    if (n.includes('phở') || n.includes('bún') || n.includes('mì') || n.includes('hủ tiếu') || n.includes('miến')) return 'Món nước';
+    // Cơm - Xôi - Cháo
+    if (n.includes('cơm') || n.includes('xôi') || n.includes('cháo')) return 'Cơm - Xôi - Cháo';
+    // Bánh mì & Món cuốn
+    if (n.includes('bánh mì') || n.includes('bánh cuốn') || n.includes('gỏi cuốn') || n.includes('bánh xèo')) return 'Bánh mì & Món cuốn';
+    // Lẩu & Đồ nướng
+    if (n.includes('lẩu') || n.includes('nướng') || n.includes('bbq') || n.includes('xiên')) return 'Lẩu & Đồ nướng';
+    // Trà & Cà phê
+    if (n.includes('cà phê') || n.includes('cafe') || n.includes('coffee') || n.includes('trà sữa') || n.includes('trà đào') || n.includes('trà')) return 'Trà & Cà phê';
+    // Tráng miệng & Giải khát
+    if (n.includes('chè') || n.includes('kem') || n.includes('sinh tố') || n.includes('nước ép') || n.includes('juice') || n.includes('nước') || n.includes('coca') || n.includes('pepsi') || n.includes('sting')) return 'Tráng miệng & Giải khát';
+    // Ăn vặt & Đường phố
+    if (n.includes('ốc') || n.includes('nem') || n.includes('bánh') || n.includes('kẹo') || n.includes('bánh tráng') || n.includes('xiên que')) return 'Ăn vặt & Đường phố';
+    // Mặc định
+    return 'Đặc sản địa phương';
+  }
+
+  /**
    * generateFinalPlan: Hàm điều phối chính để tạo lịch trình ăn uống hoàn chỉnh.
    * Kết hợp logic chấm điểm từ Gemini AI và các quy tắc lọc của hệ thống.
    */
@@ -72,10 +97,14 @@ export class ScoringHelper {
               nameLower.includes('ốc') ||
               nameLower.includes('nem chua');
 
+            // Gán category dự phòng dựa trên từ khóa trong tên món
+            // Category sử dụng đúng danh sách chuẩn giống như Gemini AI
+            const category = ScoringHelper.getFallbackCategory(m.name);
+
             return {
               name: m.name,
               price: m.price,
-              category: (m.name.split(' ')[0] || 'Khác').toLowerCase(),
+              category: category,
               isSnack: isSnack,
               score: Math.floor(Math.random() * 50) + 50,
             };
@@ -375,13 +404,16 @@ export class ScoringHelper {
         location: res.location,
         rating: res.rating || 4.2,
         priceRange: res.priceRange || 2,
-        menu: (res.menu || []).map((m: any) => ({
-          name: m.name,
-          price: m.price,
-          category: (m.name.split(' ')[0] || 'Khác').toLowerCase(),
-          score: Math.floor(Math.random() * 50) + 50,
-          imageUrl: m.imageUrl || '',
-        })),
+        menu: (res.menu || []).map((m: any) => {
+          const cat = ScoringHelper.getFallbackCategory(m.name);
+          return {
+            name: m.name,
+            price: m.price,
+            category: cat,
+            score: Math.floor(Math.random() * 50) + 50,
+            imageUrl: m.imageUrl || '',
+          };
+        }),
         scores: {
           breakfast: { score: Math.floor(Math.random() * 50) + 50 },
           lunch: { score: Math.floor(Math.random() * 50) + 50 },

@@ -106,8 +106,8 @@ export class ShopeeFoodLoader implements OnModuleInit {
       const shops = res.data.shops;
 
       if (!shops || shops.length === 0) {
-         console.warn('⚠️ [ShopeeFoodLoader] Không có quán ăn nào trong Database! Dữ liệu trống.');
-         return;
+        console.warn('⚠️ [ShopeeFoodLoader] Không có quán ăn nào trong Database! Dữ liệu trống.');
+        return;
       }
 
       // 3. Transform dữ liệu
@@ -125,7 +125,7 @@ export class ShopeeFoodLoader implements OnModuleInit {
         '❌ [ShopeeFoodLoader] Lỗi khi load dữ liệu từ Database:',
         error.message,
       );
-      
+
       console.warn('⚠️ [ShopeeFoodLoader] Fallback: Đang tải dữ liệu từ file JSON cục bộ...');
       try {
         const filePath = require('path').join(process.cwd(), 'data', 'shopeefood_geocoded.json');
@@ -146,7 +146,7 @@ export class ShopeeFoodLoader implements OnModuleInit {
    * Transform từ dữ liệu JSON (dành cho fallback)
    */
   private transformJsonShop(shop: any): TransformedRestaurant {
-    let priceRange = 2; 
+    let priceRange = 2;
     if (shop.price_range) {
       const avgPrice = (shop.price_range.min + shop.price_range.max) / 2;
       if (avgPrice <= 40000) priceRange = 1;
@@ -195,7 +195,7 @@ export class ShopeeFoodLoader implements OnModuleInit {
     let priceRange = 2; // Mặc định: Trung bình
     const min = shop.priceMin || 0;
     const max = shop.priceMax || 0;
-    
+
     if (min > 0 || max > 0) {
       const avgPrice = (min + max) / 2;
       if (avgPrice <= 40000) priceRange = 1; // Rẻ
