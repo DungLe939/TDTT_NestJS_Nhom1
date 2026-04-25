@@ -18,6 +18,10 @@ export class AddCommentDto {
     @IsOptional()
     @IsString({ each: true })
     photoUrls?: string[];
+
+    @IsOptional()
+    @IsString()
+    parentId?: string;
 }
 
 export class LikeCommentDto {

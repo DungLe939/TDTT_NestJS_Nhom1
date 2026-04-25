@@ -144,6 +144,7 @@ export class BlogService {
             likesCount: 0,
             likedByUserIds: [],
             createdAt: new Date().toISOString(),
+            parentId: dto.parentId || null,
         };
 
         if (!post.comments) {
