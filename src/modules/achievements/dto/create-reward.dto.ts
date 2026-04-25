@@ -1,11 +1,9 @@
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsDate, IsIn } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsNotEmpty, IsNumber, IsOptional, IsIn, IsInt, Min } from 'class-validator';
 import type { RewardType } from '../interfaces/achievement.interface';
 
 /**
  * Dùng khi tạo một reward mới, chỉ dành cho admin
  */
-
 export class CreateRewardDto {
     @IsNotEmpty()
     @IsIn(['voucher', 'badge', 'points'])
@@ -20,9 +18,9 @@ export class CreateRewardDto {
     description: string;
 
     @IsOptional()
-    @Type(() => Date)
-    @IsDate()
-    expiresAt?: Date;
+    @IsInt()
+    @Min(1)
+    validForDays?: number;
 
     @IsOptional()
     @IsString()

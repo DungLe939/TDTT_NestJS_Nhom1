@@ -186,13 +186,17 @@ export class AchievementService {
 
         this.logger.log(`Issuing reward ${rewardId} to user ${userId} for achievement ${achievementId}`);
 
-        // lấy thông tin reward
+        const issuedAt = new Date();
+
+        // Tính toán ngày hết hạn dựa trên validForDays
         let expiresAt: Date | undefined;
         const rewardDoc = await db.collection('rewards').doc(rewardId).get();
         if (rewardDoc.exists) {
             const rewardData = rewardDoc.data();
-            if (rewardData?.expiresAt) {
-                expiresAt = rewardData.expiresAt.toDate ? rewardData.expiresAt.toDate() : new Date(rewardData.expiresAt);
+            if (rewardData?.validForDays !== undefined) {
+                expiresAt = new Date(
+                    issuedAt.getTime() + rewardData.validForDays * 24 * 60 * 60 * 1000
+                );
             }
         }
 
@@ -200,7 +204,7 @@ export class AchievementService {
             userId,
             rewardId,
             achievementId,
-            issuedAt: new Date(),
+            issuedAt,
             isUsed: false,
         };
 
@@ -399,7 +403,7 @@ export class AchievementService {
         type: RewardType;
         value: number;
         description: string;
-        expiresAt?: Date;
+        validForDays?: number;
         icon?: string;
     }): Promise<Reward> {
         const reward: Partial<Reward> = {
@@ -407,8 +411,8 @@ export class AchievementService {
             value: dto.value,
             description: dto.description,
         };
-        if (dto.expiresAt) {
-            reward.expiresAt = dto.expiresAt;
+        if (dto.validForDays !== undefined) {
+            reward.validForDays = dto.validForDays;
         }
         if (dto.icon) {
             reward.icon = dto.icon;

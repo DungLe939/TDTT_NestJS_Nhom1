@@ -50,7 +50,7 @@ export interface Reward {
     type: RewardType;
     value: number; // e.g., 15 for a 15% discount
     description: string;
-    expiresAt?: Date;
+    validForDays?: number;
     icon?: string
 }
 
