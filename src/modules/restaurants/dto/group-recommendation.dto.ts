@@ -39,6 +39,11 @@ export class UserPreferenceDto {
   allergies?: string[];
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   distance_tolerance?: number;
@@ -113,18 +118,32 @@ export class RestaurantInfoDto {
   tags?: string[];
 }
 
-/** Kết quả chấm điểm cho một nhà hàng. */
-export class ScoreResultDto {
-  restaurant!: RestaurantInfoDto;
-  finalScore!: number;
-  avgSimilarity!: number;
-  minSimilarity!: number;
-  userScores!: UserScoreDetailDto[];
+/** Thông tin món ăn trả về trong kết quả gợi ý. */
+export class DishInfoDto {
+  id!: string;
+  name!: string;
+  price!: number;
+  rating!: number;
+  tags!: string[];
+  restaurant!: {
+    id: string;
+    name: string;
+  };
+  /** Điểm cuối cùng (raw) của thuật toán xếp hạng */
+  finalScore?: number;
+  /** % độ phù hợp (0-100) để hiển thị progress bar */
+  matchPercentage?: number;
+  /** Điểm rating trung bình của nhóm cho nhà hàng này */
+  avgGroupRating?: number;
+  /** Khoảng cách tới nhà hàng (km) */
+  distance?: number;
+  /** Danh sách lý do đề xuất (explainability) */
+  matchedReasons?: string[];
 }
 
 /** Payload trả về từ API gợi ý nhóm. */
 export class GroupRecommendationResponseDto {
-  totalCandidates!: number;
-  filteredCount!: number;
-  recommendations!: ScoreResultDto[];
+  totalCandidates?: number;
+  filteredCount?: number;
+  dishes!: DishInfoDto[];
 }

@@ -20,6 +20,9 @@ export interface IRestaurant {
   /** Toạ độ GPS */
   location: { lat: number; lng: number };
 
+  /** Địa chỉ nhà hàng */
+  address?: string;
+
   /**
    * Phân khúc giá của nhà hàng — mapping: priceRange trong Firebase.
    * 1: Rẻ (< 50,000 VND)

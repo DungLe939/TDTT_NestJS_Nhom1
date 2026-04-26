@@ -44,4 +44,7 @@ export interface IUser {
 
   /** Ngưỡng đánh giá tối thiểu (0–5) — Constraint Feature */
   min_rating?: number;
+
+  /** Tags sở thích của user — Dùng để tính match_score */
+  tags?: string[];
 }
