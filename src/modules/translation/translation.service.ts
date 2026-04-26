@@ -3,10 +3,16 @@ import { ConfigService } from '@nestjs/config';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 
+interface PendingRequest {
+    resolve: Function;
+    reject: Function;
+    timeout: NodeJS.Timeout;
+}
+
 @Injectable()
 export class TranslationService implements OnModuleInit, OnModuleDestroy {
     private pythonProcess: ChildProcess | null = null;
-    private messageQueue: Array<{ resolve: Function; reject: Function }> = [];
+    private messageQueue: PendingRequest[] = [];
 
     constructor(private readonly configService: ConfigService) {}
 
@@ -35,15 +41,21 @@ export class TranslationService implements OnModuleInit, OnModuleDestroy {
                     if (line.trim()) {
                         try {
                             const result = JSON.parse(line);
+                            
+                            // Bỏ qua message khởi tạo từ Python
+                            if (result.type === 'READY' || result.type === 'ERROR') {
+                                console.log(`[Python Status]`, result.message);
+                                return;
+                            }
+
                             const pending = this.messageQueue.shift();
                             if (pending) {
+                                clearTimeout(pending.timeout);
                                 pending.resolve(result);
                             }
                         } catch (e) {
-                            const pending = this.messageQueue.shift();
-                            if (pending) {
-                                pending.reject(new Error(`Invalid JSON response: ${line}`));
-                            }
+                            // Không shift() queue ở đây để tránh làm mất request khi có warning log không phải JSON
+                            console.warn(`[Python stdout warning]: ${line}`);
                         }
                     }
                 });
@@ -84,15 +96,16 @@ export class TranslationService implements OnModuleInit, OnModuleDestroy {
                 }
             );
 
-            this.messageQueue.push({ resolve, reject });
-
-            // ✅ FIX: Tăng từ 30s lên 120s (2 phút)
-            setTimeout(() => {
-                const pending = this.messageQueue.shift();
-                if (pending) {
+            // Timeout 120s
+            const timeout = setTimeout(() => {
+                const index = this.messageQueue.findIndex(p => p.timeout === timeout);
+                if (index !== -1) {
+                    const [pending] = this.messageQueue.splice(index, 1);
                     pending.reject(new Error('Translation timeout'));
                 }
-            }, 120000); // ← 120 giây
+            }, 120000);
+
+            this.messageQueue.push({ resolve, reject, timeout });
         });
     }
 
