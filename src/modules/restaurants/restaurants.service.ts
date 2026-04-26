@@ -3,116 +3,140 @@
  *
  * Chịu trách nhiệm truy vấn dữ liệu nhà hàng từ Firebase Firestore.
  * Tách biệt data access khỏi logic thuật toán trong EngineService.
- *
- * Pattern: Giống RawFilterHelper trong scheduler module
- *   — import `db` từ firebase.provider → query Firestore theo guest_id.
- *
- * Tối ưu quota Firestore
- *   — In-memory cache theo guest_id, TTL = 5 phút
- *   — .limit(500) để giới hạn số documents đọc từ Firestore
- *
- * @module restaurants
  */
 
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { db } from '../../providers/firebase.provider';
+import { dc } from '../../providers/dataconnect.provider';
+// Chỉ định chính xác file .js để tránh lỗi MODULE_NOT_FOUND
+import { listFoods } from '../../dataconnect-admin-generated';
 import { IRestaurant } from '../../shared/interfaces/restaurant.interface';
+import { IDish } from '../../shared/interfaces/dish.interface';
 import NodeCache = require('node-cache');
 
 @Injectable()
 export class RestaurantsService {
   private readonly logger = new Logger(RestaurantsService.name);
-
-  /**
-   * Bộ đệm chuyên nghiệp (node-cache) có cơ chế tự dọn rác.
-   * stdTTL: 300s (5 phút) — thời gian sống của dữ liệu.
-   * checkperiod: 60s — cứ mỗi 60 giây dọn rác (xóa data hết hạn khỏi RAM).
-   * Điều này khắc phục triệt để lỗi Memory Leak do Map thủ công.
-   */
   private readonly cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 
-  /**
-   * Lấy danh sách nhà hàng từ Firestore cho tính năng gợi ý nhóm.
-   *
-   * Luồng xử lý:
-   *   1. Kiểm tra cache → nếu còn hạn thì trả về ngay (0 Firestore reads)
-   *   2. Query Firestore với .limit(500) → map sang IRestaurant
-   *   3. Lưu kết quả vào cache (TTL 5 phút)
-   *
-   * Mapping Firestore → IRestaurant:
-   *   - location: GeoJSON {type, coordinates: [lng, lat]} → {lat, lng}
-   *   - openingHours: {open, close} → "open-close" string
-   *   - priceRange, taste_vector, rating: giữ nguyên
-   *
-   * @param guestId - ID phiên làm việc (lấy từ middleware)
-   * @returns Danh sách nhà hàng đã map sang IRestaurant interface
-   */
   async findByGuestId(guestId: string): Promise<IRestaurant[]> {
     const normalizedGuestId = guestId?.trim();
     if (!normalizedGuestId) {
       throw new BadRequestException('guest_id is required');
     }
 
-    // ---- Bước 1: Kiểm tra cache ----
+    // ---- Bước 1: Kiểm tra cache (Để tránh gọi DB liên tục) ----
     const cachedData = this.cache.get<IRestaurant[]>(normalizedGuestId);
     if (cachedData) {
-      this.logger.log(
-        `Trả về ${cachedData.length} nhà hàng từ cache cho guest_id: ${normalizedGuestId}`,
-      );
       return cachedData;
     }
 
-    // ---- Bước 2: Query Firestore ----
-    const snapshot = await db
-      .collection('restaurants')
-      .where('guest_id', '==', normalizedGuestId)
-      .limit(500)
-      .get();
+    try {
 
-    if (snapshot.empty) {
-      this.logger.warn(
-        `Không tìm thấy nhà hàng nào cho guest_id: ${guestId}. ` +
-          'Hãy gọi endpoint /schedule/searchLocation trước để quét dữ liệu nhà hàng.',
-      );
-      return [];
-    }
+      // ---- Bước 2: Query Data Connect ----
+      const response = await listFoods(dc, { limit: 1000 });
+      
+      const foodItems = response?.data?.foodItems;
 
-    this.logger.log(
-      `Đã tìm thấy ${snapshot.size} nhà hàng cho guest_id: ${normalizedGuestId}`,
-    );
-
-    const restaurants: IRestaurant[] = snapshot.docs.map((doc) => {
-      const data = doc.data();
-
-      // Map GeoJSON coordinates [lng, lat] sang {lat, lng}
-      const lat = data.location?.coordinates?.[1] ?? 0;
-      const lng = data.location?.coordinates?.[0] ?? 0;
-
-      // Map openingHours object sang string
-      let openingHours: string | undefined;
-      if (data.openingHours && typeof data.openingHours === 'object') {
-        openingHours = `${data.openingHours.open}-${data.openingHours.close}`;
-      } else if (typeof data.opening_hours === 'string') {
-        openingHours = data.opening_hours;
+      if (!foodItems || foodItems.length === 0) {
+        return [];
       }
 
-      return {
-        id: doc.id,
-        name: data.name,
-        location: { lat, lng },
-        priceRange: data.priceRange ?? 2,
-        tasteVector: data.taste_vector ?? [],
-        rating: data.rating ?? 4.0,
-        menu_ingredients: data.menu_ingredients,
-        tags: data.tags,
-        opening_hours: openingHours,
-      } as IRestaurant;
-    });
+      // ---- Bước 3: Ánh xạ dữ liệu sang IRestaurant interface ----
+      const restaurantMap = new Map<string, IRestaurant>();
 
-    // ---- Bước 3: Lưu vào cache ----
-    // Do node-cache đã cấu hình mặc định là 300s nên chỉ cần truyền key & data
-    this.cache.set(normalizedGuestId, restaurants);
+      foodItems.forEach((item) => {
+        const shop = item.shop;
+        let restaurant = restaurantMap.get(shop.id);
 
-    return restaurants;
+        if (!restaurant) {
+          restaurant = {
+            id: shop.id,
+            name: shop.name,
+            location: {
+              lat: shop.lat || 10.762622,
+              lng: shop.lng || 106.660172,
+            },
+            address: (shop as any).address || `Địa chỉ tại Quận 1 (ID: ${shop.id})`,
+            priceRange: 2,
+            tasteVector: [],
+            rating: shop.rating || 4.0,
+            tags: item.category ? [item.category.name] : [],
+            opening_hours: (shop as any).openingHours || "08:00-22:00",
+          } as IRestaurant;
+          restaurantMap.set(shop.id, restaurant);
+        } else if (item.category) {
+          if (!restaurant.tags) restaurant.tags = [];
+          if (!restaurant.tags.includes(item.category.name)) {
+            restaurant.tags.push(item.category.name);
+          }
+        }
+      });
+
+      const restaurants = Array.from(restaurantMap.values());
+      
+      // ---- Bước 4: Lưu vào cache ----
+      this.cache.set(normalizedGuestId, restaurants);
+
+      return restaurants;
+    } catch (error) {
+      this.logger.error(`Error querying Data Connect: ${error.message}`);
+      return [];
+    }
+  }
+
+  async findDishesByGuestId(guestId: string): Promise<IDish[]> {
+    const normalizedGuestId = guestId?.trim();
+    if (!normalizedGuestId) {
+      throw new BadRequestException('guest_id is required');
+    }
+
+    const cacheKey = `dishes_${normalizedGuestId}`;
+    const cachedData = this.cache.get<IDish[]>(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+
+    try {
+      const response = await listFoods(dc, { limit: 1000 });
+      
+      const foodItems = response?.data?.foodItems;
+
+      if (!foodItems || foodItems.length === 0) {
+        return [];
+      }
+
+      const dishes: IDish[] = foodItems.map(item => {
+        const shop = item.shop;
+        return {
+          id: item.id,
+          name: item.name,
+          price: item.price || 50000,
+          tags: item.category ? [item.category.name] : [],
+          rating: shop.rating || 4.0,
+          restaurantId: shop.id,
+          restaurant: {
+            id: shop.id,
+            name: shop.name,
+            location: {
+              lat: shop.lat || 10.762622,
+              lng: shop.lng || 106.660172,
+            },
+            address: (shop as any).address || `Địa chỉ tại Quận 1 (ID: ${shop.id})`,
+            priceRange: 2,
+            tasteVector: [],
+            rating: shop.rating || 4.0,
+            tags: item.category ? [item.category.name] : [],
+            opening_hours: (shop as any).openingHours || "08:00-22:00",
+          } as IRestaurant
+        };
+      });
+
+      this.cache.set(cacheKey, dishes);
+
+      return dishes;
+    } catch (error) {
+      this.logger.error(`Lỗi khi truy vấn Data Connect cho món ăn: ${error.message}`);
+      return [];
+    }
   }
 }

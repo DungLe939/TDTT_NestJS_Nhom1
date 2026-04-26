@@ -2,18 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   GroupRecommendationDto,
   GroupRecommendationResponseDto,
-  ScoreResultDto,
+  DishInfoDto,
 } from '../restaurants/dto/group-recommendation.dto';
 import { RestaurantsService } from '../restaurants/restaurants.service';
 import {
-  computeIndividualSimilarities,
-  aggregateGroupScore,
   getGroupBudget,
   getGroupDistanceTolerance,
   getGroupMinRating,
   getGroupAllergies,
-  AVG_WEIGHT,
-  MIN_WEIGHT,
 } from './algorithms/group-aggregation';
 import {
   MAX_DISTANCE_KM,
@@ -23,6 +19,7 @@ import {
 import { calculateDistance } from '../../utils/haversine.util';
 import { IRestaurant } from '../../shared/interfaces/restaurant.interface';
 import { IUser } from '../../shared/interfaces/user.interface';
+import { IDish } from '../../shared/interfaces/dish.interface';
 
 @Injectable()
 export class EngineService {
@@ -37,36 +34,29 @@ export class EngineService {
   }
 
   /**
-   * Tính gợi ý nhà hàng cho nhóm theo pipeline: load data, filter constraints,
-   * relaxation khi quá chặt, sau đó chấm điểm và trả về top K.
-   * @param dto Dữ liệu thành viên, vị trí hiện tại và trọng số tùy chỉnh.
-   * @param guestId Mã phiên để truy vấn tập nhà hàng tương ứng.
-   * @returns Danh sách nhà hàng đã xếp hạng cho cả nhóm.
+   * Tính gợi ý món ăn cho nhóm.
+   * Chuyển đổi restaurant sang dish-based.
    */
   async getGroupRecommendations(
     dto: GroupRecommendationDto,
     guestId: string,
   ): Promise<GroupRecommendationResponseDto> {
-    const { users: groupUsers, currentLocation, aggregationWeights } = dto;
+    const { users: groupUsers, currentLocation } = dto;
 
-    const allRestaurants = await this.restaurantsService.findByGuestId(guestId);
+    const allDishes = await this.restaurantsService.findDishesByGuestId(guestId);
 
     this.logger.log(
-      `[Recommendation] guest=${guestId}, totalRestaurants=${allRestaurants.length}, ` +
-        `users=${groupUsers.length}, location=(${currentLocation.lat}, ${currentLocation.lng})`,
+      `Đang xử lý gợi ý nhóm: khách=${guestId}, số người=${groupUsers.length}`,
     );
 
-    if (allRestaurants.length === 0) {
-      this.logger.warn(
-        `Không có nhà hàng nào trong Firestore cho guest_id: ${guestId}. ` +
-          'Hãy gọi /schedule/searchLocation trước.',
-      );
+    if (allDishes.length === 0) {
       return {
         totalCandidates: 0,
         filteredCount: 0,
-        recommendations: [],
+        dishes: [],
       };
     }
+
 
     const users: IUser[] = groupUsers.map((u) => ({
       userId: u.userId,
@@ -75,6 +65,7 @@ export class EngineService {
       allergies: u.allergies,
       distance_tolerance: u.distance_tolerance,
       min_rating: u.min_rating,
+      tags: u.tags,
     }));
 
     // Tính constraint aggregation
@@ -82,187 +73,173 @@ export class EngineService {
     const groupDistance = getGroupDistanceTolerance(users, MAX_DISTANCE_KM);
     const groupMinRating = getGroupMinRating(users);
     const groupAllergies = getGroupAllergies(users);
-    const groupPriceRange = budgetToPriceRange(groupBudget);
 
-    this.logger.log(
-      `[Constraints] budget=${groupBudget}, priceRange<=${groupPriceRange}, ` +
-        `distance<=${groupDistance}km, minRating>=${groupMinRating}, ` +
-        `allergies=${groupAllergies.size > 0 ? [...groupAllergies].join(',') : 'none'}`,
-    );
+    this.logger.log(`Đang lọc với các ràng buộc: ngân sách=${groupBudget}, khoảng cách=${groupDistance}km`);
 
     // ---- Filter với relaxation ----
-    let filteredRestaurants = this.filterRestaurants(
-      allRestaurants,
+    let filteredDishes = this.filterDishes(
+      allDishes,
       currentLocation,
       groupDistance,
-      groupPriceRange,
+      groupBudget,
       groupMinRating,
       groupAllergies,
     );
 
-    this.logger.log(
-      `[Filter] Strict: ${filteredRestaurants.length}/${allRestaurants.length} phù hợp`,
-    );
+    // Filtering logic with relaxation options
 
-    /**
-     * RELAXATION STRATEGY:
-     * Nếu filter quá chặt (0 hoặc quá ít kết quả), nới lỏng dần:
-     * 1. Bỏ rating filter
-     * 2. Nới rộng khoảng cách (×2)
-     * 3. Nới rộng priceRange (+1)
-     * 4. Fallback cuối: chỉ filter distance (×3)
-     */
-    if (filteredRestaurants.length === 0) {
-      this.logger.warn(
-        '[Relaxation] Strict filter trả rỗng → thử bỏ rating...',
-      );
+    // Relaxation logic
+    if (filteredDishes.length === 0) {
+      this.logger.warn('Bộ lọc nghiêm ngặt không có kết quả → đang nới lỏng (bỏ qua đánh giá)...');
+      filteredDishes = this.filterDishes(allDishes, currentLocation, groupDistance, groupBudget, 0, groupAllergies);
 
-      // Level 1: Bỏ min_rating
-      filteredRestaurants = this.filterRestaurants(
-        allRestaurants,
-        currentLocation,
-        groupDistance,
-        groupPriceRange,
-        0, // Bỏ rating filter
-        groupAllergies,
-      );
-
-      if (filteredRestaurants.length === 0) {
-        this.logger.warn('[Relaxation] Vẫn rỗng → nới rộng distance ×2...');
-
-        // Level 2: Nới distance ×2 + bỏ rating
-        filteredRestaurants = this.filterRestaurants(
-          allRestaurants,
-          currentLocation,
-          groupDistance * 2,
-          groupPriceRange,
-          0,
-          groupAllergies,
-        );
+      if (filteredDishes.length === 0) {
+        this.logger.warn('Vẫn không có kết quả → nới lỏng khoảng cách (gấp 2 lần)...');
+        filteredDishes = this.filterDishes(allDishes, currentLocation, groupDistance * 2, groupBudget, 0, groupAllergies);
       }
 
-      if (filteredRestaurants.length === 0) {
-        this.logger.warn('[Relaxation] Vẫn rỗng → nới budget + distance...');
-
-        // Level 3: Nới distance ×2 + priceRange +1 + bỏ rating
-        filteredRestaurants = this.filterRestaurants(
-          allRestaurants,
-          currentLocation,
-          groupDistance * 2,
-          Math.min(groupPriceRange + 1, 3),
-          0,
-          groupAllergies,
-        );
+      if (filteredDishes.length === 0) {
+        this.logger.warn('Vẫn không có kết quả → loại bỏ giới hạn ngân sách...');
+        filteredDishes = this.filterDishes(allDishes, currentLocation, groupDistance * 3, Infinity, 0, new Set());
       }
-
-      if (filteredRestaurants.length === 0) {
-        this.logger.warn(
-          '[Relaxation] Vẫn rỗng → fallback chỉ distance ×3, bỏ mọi filter...',
-        );
-
-        // Level 4 (final fallback): Chỉ filter distance ×3, bỏ hết constraint khác
-        filteredRestaurants = this.filterRestaurants(
-          allRestaurants,
-          currentLocation,
-          groupDistance * 3,
-          3, // Cho phép mọi mức giá
-          0,
-          new Set(), // Bỏ allergies
-        );
-      }
-
-      this.logger.log(
-        `[Relaxation] Sau nới lỏng: ${filteredRestaurants.length} kết quả`,
-      );
     }
 
-    // ---- Scoring ----
-    const resolvedWeights = aggregationWeights
-      ? {
-          avgWeight: aggregationWeights.avgWeight ?? AVG_WEIGHT,
-          minWeight: aggregationWeights.minWeight ?? MIN_WEIGHT,
+    // ---- Scoring (Dish-based) ----
+    // Tính match_score dựa trên tags của group preferences
+    const tagCounts: Record<string, number> = {};
+    const TASTE_LABELS: Record<string, string> = {
+      cay: 'Hợp khẩu vị cay',
+      ngot: 'Hợp khẩu vị ngọt',
+      man: 'Hợp khẩu vị mặn',
+      chua: 'Hợp khẩu vị chua',
+      beo: 'Hợp khẩu vị béo',
+      thanh_dam: 'Hợp khẩu vị thanh đạm',
+      hai_san: 'Hợp khẩu vị hải sản',
+      chay: 'Món chay phù hợp',
+    };
+
+    for (const user of users) {
+      if (user.tags) {
+        for (const tag of user.tags) {
+          const lowerTag = tag.toLowerCase().trim();
+          tagCounts[lowerTag] = (tagCounts[lowerTag] || 0) + 1;
         }
-      : undefined;
+      }
+    }
 
-    const scoredResults: ScoreResultDto[] = filteredRestaurants.map(
-      ({ restaurant, distance }) => {
-        const similarities = computeIndividualSimilarities(users, restaurant);
+    // Tính avg budget của nhóm
+    const groupAvgBudget = users.length > 0
+      ? users.reduce((sum, u) => sum + (u.budget || 0), 0) / users.length
+      : Infinity;
 
-        const userScores = users.map((user, index) => ({
-          userId: user.userId ?? `user_${index}`,
-          similarity: Math.round(similarities[index] * 100) / 100,
-        }));
+    // Tính avgGroupRating (trung bình rating mong muốn của nhóm)
+    const avgGroupMinRating = users.length > 0
+      ? users.reduce((sum, u) => sum + (u.min_rating || 3.0), 0) / users.length
+      : 3.0;
 
-        const finalScore = aggregateGroupScore(similarities, resolvedWeights);
+    const scoredDishes = filteredDishes.map(({ dish, distance }) => {
+      let matchScore = 0;
+      const matchedTags: string[] = [];
 
-        const avgSimilarity =
-          similarities.length > 0
-            ? Math.round(
-                (similarities.reduce((s, v) => s + v, 0) /
-                  similarities.length) *
-                  100,
-              ) / 100
-            : 0;
-        const minSimilarity =
-          similarities.length > 0
-            ? Math.round(Math.min(...similarities) * 100) / 100
-            : 0;
+      for (const tag of dish.tags) {
+        const lowerTag = tag.toLowerCase().trim();
+        if (tagCounts[lowerTag]) {
+          matchScore += tagCounts[lowerTag];
+          if (TASTE_LABELS[lowerTag] && !matchedTags.includes(TASTE_LABELS[lowerTag])) {
+            matchedTags.push(TASTE_LABELS[lowerTag]);
+          }
+        }
+      }
 
-        return {
-          restaurant: {
-            id: restaurant.id ?? '',
-            name: restaurant.name,
-            price: this.priceRangeToPrice(restaurant.priceRange),
-            rating: restaurant.rating,
-            location: restaurant.location,
-            distance: Math.round(distance * 100) / 100,
-            tags: restaurant.tags,
-          },
-          finalScore,
-          avgSimilarity,
-          minSimilarity,
-          userScores,
-        };
-      },
-    );
+      // Ranking: score = rating + match_score - distance
+      const finalScore = dish.rating + matchScore - distance;
 
-    scoredResults.sort((a, b) => b.finalScore - a.finalScore);
+      // Xây dựng matchedReasons
+      const reasons: string[] = [];
 
-    this.logger.log(
-      `[Result] Top ${Math.min(TOP_K, scoredResults.length)} nhà hàng. ` +
-        `Best: ${scoredResults[0]?.restaurant.name ?? 'N/A'} (${scoredResults[0]?.finalScore ?? 0})`,
-    );
+      // Lý do 1: ngân sách
+      if (dish.price <= groupAvgBudget) {
+        reasons.push('Phù hợp ngân sách nhóm');
+      }
+
+      // Lý do 2: khoảng cách
+      if (distance <= 1.0) {
+        reasons.push(`Rất gần (${distance.toFixed(1)} km)`);
+      } else if (distance <= 3.0) {
+        reasons.push(`Gần (${distance.toFixed(1)} km)`);
+      } else {
+        reasons.push(`Cách ${distance.toFixed(1)} km`);
+      }
+
+      // Lý do 3: khẩu vị
+      reasons.push(...matchedTags.slice(0, 2));
+
+      // Lý do 4: rating
+      if (dish.rating >= 4.5) {
+        reasons.push('Rating xuất sắc ⭐');
+      } else if (dish.rating >= 4.0) {
+        reasons.push('Rating tốt');
+      }
+
+      return {
+        dish,
+        finalScore,
+        distance,
+        matchedReasons: reasons,
+      };
+    });
+
+    scoredDishes.sort((a, b) => b.finalScore - a.finalScore);
+
+    // Normalize finalScore → matchPercentage (0-100)
+    const maxScore = scoredDishes.length > 0 ? scoredDishes[0].finalScore : 1;
+    const minScore = scoredDishes.length > 0 ? scoredDishes[scoredDishes.length - 1].finalScore : 0;
+    const scoreRange = maxScore - minScore || 1;
+
+    const topDishes = scoredDishes.slice(0, TOP_K).map(item => {
+      const dish = item.dish;
+      // Map finalScore vào [50, 100]%
+      const matchPct = Math.round(50 + ((item.finalScore - minScore) / scoreRange) * 50);
+
+      return {
+        id: dish.id,
+        name: dish.name,
+        price: dish.price,
+        rating: dish.rating,
+        tags: dish.tags,
+        restaurant: {
+          id: dish.restaurant!.id || '',
+          name: dish.restaurant!.name,
+        },
+        finalScore: Math.round(item.finalScore * 100) / 100,
+        matchPercentage: Math.min(100, Math.max(0, matchPct)),
+        avgGroupRating: Math.round(avgGroupMinRating * 10) / 10,
+        distance: Math.round(item.distance * 10) / 10,
+        matchedReasons: item.matchedReasons,
+      } as DishInfoDto;
+    });
 
     return {
-      totalCandidates: allRestaurants.length,
-      filteredCount: filteredRestaurants.length,
-      recommendations: scoredResults.slice(0, TOP_K),
+      totalCandidates: allDishes.length,
+      filteredCount: filteredDishes.length,
+      dishes: topDishes,
     };
   }
 
-  /**
-   * Filter nhà hàng theo hard constraints.
-   * Trả về danh sách { restaurant, distance } với distance đã tính.
-   *
-   * @param restaurants - Tất cả nhà hàng từ Firestore
-   * @param center - Toạ độ tâm (currentLocation)
-   * @param maxDistance - Khoảng cách tối đa (km)
-   * @param maxPriceRange - Mức giá tối đa cho phép (1-3)
-   * @param minRating - Rating tối thiểu (0-5)
-   * @param allergies - Set các allergens cần loại trừ
-   */
-  private filterRestaurants(
-    restaurants: IRestaurant[],
+  private filterDishes(
+    dishes: IDish[],
     center: { lat: number; lng: number },
     maxDistance: number,
-    maxPriceRange: number,
+    groupBudget: number,
     minRating: number,
     allergies: Set<string>,
-  ): { restaurant: IRestaurant; distance: number }[] {
-    const results: { restaurant: IRestaurant; distance: number }[] = [];
+  ): { dish: IDish; distance: number }[] {
+    const results: { dish: IDish; distance: number }[] = [];
 
-    for (const restaurant of restaurants) {
-      // Skip nhà hàng có toạ độ (0,0) — dữ liệu lỗi
+    for (const dish of dishes) {
+      const restaurant = dish.restaurant;
+      if (!restaurant) continue;
+
       if (restaurant.location.lat === 0 && restaurant.location.lng === 0) {
         continue;
       }
@@ -275,17 +252,25 @@ export class EngineService {
       );
 
       if (distance > maxDistance) continue;
-      if (restaurant.priceRange > maxPriceRange) continue;
-      if (minRating > 0 && restaurant.rating < minRating) continue;
+      if (dish.price > groupBudget) continue;
+      if (minRating > 0 && dish.rating < minRating) continue;
 
-      if (allergies.size > 0 && restaurant.menu_ingredients) {
-        const hasAllergen = restaurant.menu_ingredients.some((ingredient) =>
-          allergies.has(ingredient.toLowerCase().trim()),
+      if (allergies.size > 0) {
+        const dishContent = `${dish.name} ${dish.tags.join(' ')}`.toLowerCase();
+        const hasAllergenInDish = Array.from(allergies).some((a) =>
+          dishContent.includes(a.toLowerCase()),
         );
-        if (hasAllergen) continue;
+        if (hasAllergenInDish) continue;
+
+        if (restaurant.menu_ingredients) {
+          const hasAllergenInIngredients = restaurant.menu_ingredients.some(
+            (ingredient) => allergies.has(ingredient.toLowerCase().trim()),
+          );
+          if (hasAllergenInIngredients) continue;
+        }
       }
 
-      results.push({ restaurant, distance });
+      results.push({ dish, distance });
     }
 
     return results;
