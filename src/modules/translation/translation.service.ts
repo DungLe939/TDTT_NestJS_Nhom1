@@ -21,8 +21,8 @@ export class TranslationService implements OnModuleInit, OnModuleDestroy {
     }
 
     private startPythonProcess() {
-        // Dùng __dirname để trỏ về dist/python (NestJS assets copy từ src/python)
-        const pythonPath = path.join(__dirname, '../../python/translation_service.py');
+        // Use the source python script location (src/python) irrespective of build mode
+        const pythonPath = path.join(process.cwd(), 'src/python/translation_service.py');
 
         this.pythonProcess = spawn('python', [pythonPath], {
             stdio: ['pipe', 'pipe', 'pipe'],
