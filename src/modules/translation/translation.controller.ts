@@ -13,9 +13,11 @@ export class TranslationController {
         }
 
         try {
+            // Truyền 'source' xuống service để Python biết được nguồn gốc văn bản
             const result = await this.translationService.translate(
                 translateDto.text,
-                translateDto.method || 'en2vi'
+                translateDto.method || 'en2vi',
+                translateDto.source || 'chat'  // Mặc định là 'chat' nếu không truyền
             );
 
             return {

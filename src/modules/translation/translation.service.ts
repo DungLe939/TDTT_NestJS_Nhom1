@@ -73,14 +73,20 @@ export class TranslationService implements OnModuleInit, OnModuleDestroy {
         });
     }
 
+    /**
+     * Gửi yêu cầu dịch xuống Python process.
+     * @param text - Văn bản cần dịch
+     * @param method - Chiều dịch: 'en2vi' hoặc 'vi2en'
+     * @param source - Nguồn gốc: 'scan' (quét menu, ưu tiên RAG) hoặc 'chat' (tự nhập, dùng VinAI trực tiếp)
+     */
     async translate(
         text: string,
-        method: 'en2vi' | 'vi2en' = 'en2vi'
+        method: 'en2vi' | 'vi2en' = 'en2vi',
+        source: 'scan' | 'chat' = 'chat'
     ): Promise<{
         input: string;
         output: string;
         method: string;
-        sentiment?: { label: string; score: number };
     }> {
         return new Promise((resolve, reject) => {
             if (!this.pythonProcess || !this.pythonProcess.stdin) {
@@ -88,8 +94,9 @@ export class TranslationService implements OnModuleInit, OnModuleDestroy {
                 return;
             }
 
+            // Gửi cả 3 tham số: text, method, source cho Python
             this.pythonProcess.stdin.write(
-                JSON.stringify({ text, method }) + '\n',
+                JSON.stringify({ text, method, source }) + '\n',
                 'utf-8',
                 (err) => {
                     if (err) reject(err);
