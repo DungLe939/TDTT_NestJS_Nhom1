@@ -15,7 +15,7 @@ export class SchedulerService {
     private readonly scoringHelper: ScoringHelper,
     private readonly planCacheHelper: PlanCacheHelper,
     private readonly shopeeFoodLoader: ShopeeFoodLoader,
-  ) {}
+  ) { }
 
   // Hàm lấy tọa độ từ Keyword
   private async getCoordsFromKeyword(keyword: string) {
@@ -157,7 +157,7 @@ export class SchedulerService {
         if (originalData) {
           // Tìm ảnh của món ăn cụ thể trong menu
           const selectedDishData = originalData.menu?.find(m => m.name === aiChoice.dish);
-          
+
           enrichedMeals[session] = {
             // Thông tin từ AI (Món ăn cụ thể và lý do)
             dish: aiChoice.dish,
@@ -207,16 +207,14 @@ export class SchedulerService {
 
   /**
    * preparePlanData: Bước chuẩn bị (Raw Filter + Clustering) trong luồng Streaming.
-   * Phương thức này lọc dữ liệu từ Firestore và phân cụm quán ăn, sau đó lưu kết quả
-   * vào RAM Cache để các bước generateDayPlan tiếp theo có thể truy xuất ngay lập tức.
+   * [QUAN TRỌNG ĐỂ REVIEW]:
+   * 1. Nhận vị trí người dùng, số ngày đi (travelDays) và ngân sách (budget).
+   * 2. Lấy danh sách quán từ ShopeeFoodLoader.
+   * 3. Phân cụm (Clustering) các quán ăn thành N cụm (tương ứng N ngày đi) bằng thuật toán K-means.
+   * 4. Lưu toàn bộ kết quả vào RAM Cache. Bước này CHƯA GỌI AI, giúp tiết kiệm thời gian đáng kể.
    */
   async preparePlanData(body: any, guestId: string) {
     const { budget, currentLocation, preferences, travelDays } = body;
-    console.log(`[PreparePlanData] Payload:`, {
-      budget,
-      travelDays,
-      guestId,
-    });
 
     if (!currentLocation || !currentLocation.lat || !currentLocation.lng) {
       throw new Error(
@@ -235,7 +233,6 @@ export class SchedulerService {
     let globalMaxPriceRange = 2;
     if (mealBudgetConfig.dinner > 200000) globalMaxPriceRange = 3;
 
-    console.log(`[PreparePlanData] Đang gọi RawFilterHelper...`);
     // Lọc thô dữ liệu từ Firestore (Theo ý bạn: Vẫn dùng DB để quét quán ban đầu)
     const rawRestaurants = await this.rawFilterHelper.rawData(
       currentLocation,
@@ -245,16 +242,12 @@ export class SchedulerService {
     );
 
     if (!rawRestaurants || rawRestaurants.length === 0) {
-      console.log(`[PreparePlanData] Không tìm thấy quán nào.`);
       return {
         success: false,
         message: 'Không tìm thấy quán ăn phù hợp tại khu vực này.',
       };
     }
 
-    console.log(
-      `[PreparePlanData] Tìm thấy ${rawRestaurants.length} quán. Đang phân cụm...`,
-    );
     // Thực hiện phân cụm (Clustering) quán ăn theo số ngày đi
     const orderedPlan = this.clusteringHelper.clusteringStep(
       rawRestaurants,
@@ -262,9 +255,6 @@ export class SchedulerService {
       currentLocation,
     );
 
-    console.log(
-      `[PreparePlanData] Phân cụm xong. Đang lưu vào Cloud Cache...`,
-    );
     // LƯU KẾT QUẢ VÀO CLOUD CACHE: Để các lượt gọi sau không phải tính lại bước này
     await this.planCacheHelper.set(guestId, {
       rawRestaurants,
@@ -274,7 +264,6 @@ export class SchedulerService {
       usedCategories: [],
     });
 
-    console.log(`[PreparePlanData] Hoàn tất.`);
     return {
       success: true,
       totalDays: travelDays,
@@ -285,7 +274,13 @@ export class SchedulerService {
 
   /**
    * createSingleDayPlan: Tạo lịch trình cho một ngày cụ thể (Dùng cho Streaming).
-   * Frontend gọi hàm này lặp lại cho từng ngày (0, 1, 2...) để hiển thị kết quả dần dần.
+   * [QUAN TRỌNG ĐỂ REVIEW]:
+   * 1. Lấy dữ liệu cụm của ngày `dayIndex` từ In-Memory Cache.
+   * 2. Gọi `scoringHelper.generateSingleDayPlan` để nhờ AI (Gemini) chấm điểm quán ăn trong cụm.
+   *    -> Lưu ý: AI chỉ chấm điểm, KHÔNG sinh metadata, giúp giảm token 80%.
+   * 3. Lưu điểm của AI (`scoredRestaurants`) vào cache để phục vụ tính năng "Đổi món" (getSwapOptions)
+   *    mà KHÔNG cần gọi lại AI.
+   * 4. Lấy dữ liệu gốc từ ShopeeFood (như img, price_range, openingHours) đắp vào kết quả trả về.
    */
   async createSingleDayPlan(guestId: string, dayIndex: number) {
     const cache = await this.planCacheHelper.get(guestId);
@@ -331,7 +326,7 @@ export class SchedulerService {
         const mealAny = meal as any;
         const originalData = cache.rawRestaurants.find(r => r.id === mealAny.id);
         const selectedDishData = originalData?.menu?.find(m => m.name === mealAny.dish);
-        
+
         enrichedMeals[session] = {
           ...mealAny,
           img: selectedDishData?.imageUrl || originalData?.coverImage || '',
@@ -378,7 +373,7 @@ export class SchedulerService {
           steps: steps && route.legs && route.legs[0] ? route.legs[0].steps : undefined,
         };
       }
-      
+
       require('fs').appendFileSync('osrm_error.log', new Date().toISOString() + ' - No Route Found cho: ' + url + '\n');
       console.log('OSRM No Route:', url);
       return null;
@@ -437,7 +432,7 @@ export class SchedulerService {
       }
     }
 
-    const sortedRestaurants = [...scoredRestaurants]
+    const sortedRestaurants = [...scoredRestaurants as any[]]
       .sort((a, b) => {
         const scoreA =
           typeof a.scores?.[mealType] === 'object'
@@ -466,11 +461,11 @@ export class SchedulerService {
       const dist =
         refLat && refLng
           ? calculateDistance(
-              refLat,
-              refLng,
-              res.location?.coordinates?.[1] ?? 0,
-              res.location?.coordinates?.[0] ?? 0,
-            )
+            refLat,
+            refLng,
+            res.location?.coordinates?.[1] ?? 0,
+            res.location?.coordinates?.[0] ?? 0,
+          )
           : 0;
 
       res.menu?.forEach((item: any) => {
@@ -516,9 +511,11 @@ export class SchedulerService {
   }
 
   /**
-   * getAllDishes: Trả về toàn bộ danh sách quán ăn + món ăn từ cache của phiên hiện tại.
-   * Được gọi khi user click "Ťhêm bữa ăn phụ" để AddSnackModal hiển thị tất cả món,
-   * không còn lọc theo isSnack nữa.
+   * getAllDishes: Lấy toàn bộ danh sách món ăn từ ShopeeFood
+   * [QUAN TRỌNG ĐỂ REVIEW]: 
+   * Tính năng "Thêm bữa ăn phụ" đã được làm lại. Không còn dùng AI sinh 'isSnack'.
+   * Hàm này trả về toàn bộ quán ăn từ ShopeeFoodLoader. Frontend sẽ tự map category 
+   * và cho người dùng tự filter (như Cơm, Bún, Trà sữa, Ăn vặt...).
    */
   async getAllDishes(guestId: string) {
     const cache = await this.planCacheHelper.get(guestId);

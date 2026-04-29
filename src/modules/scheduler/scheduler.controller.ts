@@ -72,13 +72,15 @@ export class SchedulerController {
   // ============================================
 
   // endpoint: /schedule/preparePlan
-  // CHẠY NGẦM: Lọc thô + Phân cụm quán ăn
-  // Giúp chuẩn bị dữ liệu sẵn sàng trên Server trước khi AI bắt đầu tạo từng ngày.
+  // CHẠY NGẦM: Lọc thô + Phân cụm quán ăn (Clustering)
+  // [NEW OPTIMIZATION]: Tách logic chuẩn bị dữ liệu ra khỏi việc gọi AI.
+  // 1. Lọc các quán phù hợp ngân sách, khoảng cách.
+  // 2. Chia các quán vào các "cụm" (clusters) theo từng ngày dựa trên vị trí địa lý.
+  // 3. Lưu vào In-Memory Cache (RAM) để tái sử dụng.
   @Post('preparePlan')
   async preparePlan(@Body() body: any, @Req() req: Request) {
     try {
       const guestId = (req as any).guest_id;
-      console.log(`[PreparePlan] Bắt đầu chuẩn bị cho guest: ${guestId}`);
       const result = await this.schedulerService.preparePlanData(body, guestId);
       return result;
     } catch (error) {
@@ -88,13 +90,17 @@ export class SchedulerController {
   }
 
   // endpoint: /schedule/generateDayPlan
-  // STREAMING: Tạo lịch trình cho một ngày cụ thể
-  // Frontend sẽ gọi hàm này nhiều lần để lấy kết quả từng ngày và hiển thị ngay cho user.
+  // STREAMING: Tạo lịch trình cho một ngày cụ thể (Dùng Gemini)
+  // [NEW OPTIMIZATION]:
+  // 1. Đọc dữ liệu cụm (cluster) của ngày hiện tại từ Cache.
+  // 2. Gọi Gemini AI với prompt RÚT GỌN (chỉ yêu cầu chấm điểm 3 bữa, KHÔNG sinh metadata).
+  // 3. Merge điểm của AI với dữ liệu gốc (ShopeeFood) để tạo lịch trình hoàn chỉnh.
+  // 4. Lưu kết quả chấm điểm vào Cache để dùng cho tính năng "Đổi món".
+  // Frontend sẽ gọi API này lặp lại cho từng ngày (0, 1, 2...) để hiển thị UI dần dần (Streaming).
   @Post('generateDayPlan')
   async generateDayPlan(@Body() body: any, @Req() req: Request) {
     try {
       const guestId = (req as any).guest_id;
-      console.log(`[GenerateDayPlan] Bắt đầu tạo ngày ${body.dayIndex} cho guest: ${guestId}`);
       const result = await this.schedulerService.createSingleDayPlan(guestId, body.dayIndex);
       return { success: true, ...result };
     } catch (error) {
@@ -143,7 +149,10 @@ export class SchedulerController {
 
   // endpoint: /schedule/allDishes
   // Lấy toàn bộ danh sách quán ăn + món ăn cho tính năng "Thêm bữa ăn phụ"
-  // Không còn lọc theo isSnack nữa — trả về TẤT CẢ, frontend tự filter theo category
+  // [NEW OPTIMIZATION]: 
+  // - Không còn lọc theo isSnack bằng AI.
+  // - Trả về TẤT CẢ quán ăn từ ShopeeFood. Frontend tự map và filter theo "category" gốc.
+  // - Nhanh hơn, chuẩn xác hơn và giảm phụ thuộc vào AI.
   @Post('allDishes')
   async getAllDishes(@Req() req: Request) {
     try {

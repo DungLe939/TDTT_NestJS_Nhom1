@@ -55,7 +55,6 @@ export class GeminiScoringHelper {
     }
 
     const startTime = Date.now();
-    console.log(`🧠 [Gemini] Chấm điểm ${restaurants.length} quán (${chunks.length} chunk x ${CHUNK_SIZE}, SONG SONG)`);
 
     // Gọi song song tất cả chunk để tiết kiệm thời gian
     const chunkPromises = chunks.map((chunk, index) =>
@@ -100,7 +99,6 @@ export class GeminiScoringHelper {
     });
 
     const elapsed = Date.now() - startTime;
-    console.log(`✅ [Gemini] Hoàn tất! ${merged.length}/${restaurants.length} quán trong ${elapsed}ms`);
     return merged;
   }
 
@@ -161,7 +159,6 @@ ${JSON.stringify(minifiedData)}`;
           : responseText.replace(/```json|```/g, '').trim();
 
         const parsed = JSON.parse(cleanJson);
-        console.log(`  ✅ Chunk ${chunkIndex + 1}: OK lần ${attempt} [${modelName}] (${parsed.length} quán)`);
         return parsed;
       } catch (error: any) {
         const msg = (error.message || String(error)).substring(0, 100);

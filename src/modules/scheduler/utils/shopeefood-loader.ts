@@ -99,8 +99,6 @@ export class ShopeeFoodLoader implements OnModuleInit {
         });
       }
 
-      console.log('⏳ [ShopeeFoodLoader] Đang tải dữ liệu từ PostgreSQL qua Firebase Data Connect...');
-
       // 2. Lấy dữ liệu qua GraphQL Query đã sinh ra
       const res = await listAllShopsWithMenu();
       const shops = res.data.shops;
@@ -113,13 +111,6 @@ export class ShopeeFoodLoader implements OnModuleInit {
       // 3. Transform dữ liệu
       this.restaurants = shops.map((shop: any) => this.transformDbShop(shop));
       this.isLoaded = true;
-
-      console.log(
-        `✅ [ShopeeFoodLoader] Đã load ${this.restaurants.length} quán ăn từ Database.`,
-      );
-      console.log(
-        `   📊 Tổng cộng ${this.restaurants.reduce((sum, r) => sum + r.menu.length, 0)} món ăn.`,
-      );
     } catch (error: any) {
       console.error(
         '❌ [ShopeeFoodLoader] Lỗi khi load dữ liệu từ Database:',

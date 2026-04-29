@@ -13,7 +13,7 @@ import { Injectable } from '@nestjs/common';
  * Nếu cần persistence sau này, có thể dùng Redis hoặc bật lại Data Connect.
  */
 
-interface CachedPlanData {
+export interface CachedPlanData {
     rawRestaurants: any[];       // Danh sách quán đã lọc sơ bộ
     orderedPlan: any[];          // Kết quả phân cụm (đã được sắp xếp theo ngày)
     mealBudgetConfig: any;       // Cấu hình ngân sách từng bữa
@@ -48,7 +48,6 @@ export class PlanCacheHelper {
                 dayScores: {},
                 updatedAt: Date.now(),
             });
-            console.log(`[PlanCache] ✅ Đã lưu cache cho guest: ${guestId} (${data.rawRestaurants?.length || 0} quán, ${data.orderedPlan?.length || 0} ngày)`);
         } catch (error) {
             console.error('[PlanCache] Lỗi lưu cache:', error.message || error);
         }
@@ -89,7 +88,6 @@ export class PlanCacheHelper {
             if (entry) {
                 entry.dayScores[dayIndex] = scoredRestaurants;
                 entry.updatedAt = Date.now();
-                console.log(`[PlanCache] ✅ Đã lưu dayScores ngày ${dayIndex} cho guest: ${guestId} (${scoredRestaurants.length} quán, tổng menu: ${scoredRestaurants.reduce((s, r) => s + (r.menu?.length || 0), 0)} món)`);
             } else {
                 console.warn(`[PlanCache] ⚠️ saveDayScores: Không tìm thấy cache cho guest: ${guestId}`);
             }
@@ -110,7 +108,6 @@ export class PlanCacheHelper {
                 return null;
             }
             const result = entry.dayScores?.[dayIndex] ?? null;
-            console.log(`[PlanCache] getDayScores ngày ${dayIndex}: ${result ? result.length + ' quán' : 'NULL'}`);
             return result;
         } catch (error) {
             console.error('[PlanCache] Lỗi lấy DayScores:', error.message || error);
@@ -147,7 +144,7 @@ export class PlanCacheHelper {
             }
         });
         if (cleaned > 0) {
-            console.log(`[PlanCache] 🧹 Đã dọn ${cleaned} cache hết hạn. Còn ${this.memCache.size} active.`);
+            // Cleanup finished
         }
     }
 }
