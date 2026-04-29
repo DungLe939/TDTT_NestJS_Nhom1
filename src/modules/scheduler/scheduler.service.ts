@@ -402,16 +402,40 @@ export class SchedulerService {
     const cache = await this.planCacheHelper.get(guestId);
     if (!cache) return { success: false, message: 'Session expired' };
 
-    const scoredRestaurants = await this.planCacheHelper.getDayScores(
+    let scoredRestaurants = await this.planCacheHelper.getDayScores(
       guestId,
       dayIndex,
     );
-    if (!scoredRestaurants)
-      return {
-        success: false,
-        message:
-          'Chưa có dữ liệu chấm điểm cho ngày này. Vui lòng tạo lịch trình trước.',
-      };
+
+    // FALLBACK: Nếu chưa có dayScores trong cache (user click Đổi món quá nhanh
+    // hoặc cache không lưu được), dùng rawRestaurants của cụm ngày đó với scores ngẫu nhiên.
+    if (!scoredRestaurants || scoredRestaurants.length === 0) {
+      console.warn(`[SwapOptions] Không tìm thấy dayScores cho ngày ${dayIndex}, dùng fallback từ rawRestaurants.`);
+      const dayPlan = cache.orderedPlan?.[dayIndex];
+      if (dayPlan?.cluster?.restaurants?.length > 0) {
+        scoredRestaurants = dayPlan.cluster.restaurants.map((res: any) => ({
+          id: res.id,
+          restaurantName: res.name,
+          address: res.address,
+          location: res.location,
+          rating: res.rating || 4.0,
+          priceRange: res.priceRange || 2,
+          openingHours: res.openingHours,
+          menu: res.menu || [],
+          scores: {
+            breakfast: { score: Math.floor(Math.random() * 40) + 50 },
+            lunch: { score: Math.floor(Math.random() * 40) + 50 },
+            dinner: { score: Math.floor(Math.random() * 40) + 50 },
+          },
+        }));
+      } else {
+        // Nếu không có cả orderedPlan thì mới thực sự trả về lỗi
+        return {
+          success: false,
+          message: 'Chưa có dữ liệu chấm điểm cho ngày này. Vui lòng tạo lịch trình trước.',
+        };
+      }
+    }
 
     const sortedRestaurants = [...scoredRestaurants]
       .sort((a, b) => {

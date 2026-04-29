@@ -88,8 +88,8 @@ export class PlanCacheHelper {
             const entry = this.memCache.get(guestId);
             if (entry) {
                 entry.dayScores[dayIndex] = scoredRestaurants;
-                entry.updatedAt = Date.now(); // Làm mới TTL khi có hoạt động
-                console.log(`[PlanCache] ✅ Đã lưu dayScores ngày ${dayIndex} cho guest: ${guestId} (${scoredRestaurants.length} quán)`);
+                entry.updatedAt = Date.now();
+                console.log(`[PlanCache] ✅ Đã lưu dayScores ngày ${dayIndex} cho guest: ${guestId} (${scoredRestaurants.length} quán, tổng menu: ${scoredRestaurants.reduce((s, r) => s + (r.menu?.length || 0), 0)} món)`);
             } else {
                 console.warn(`[PlanCache] ⚠️ saveDayScores: Không tìm thấy cache cho guest: ${guestId}`);
             }
@@ -105,9 +105,13 @@ export class PlanCacheHelper {
     async getDayScores(guestId: string, dayIndex: number): Promise<any[] | null> {
         try {
             const entry = this.memCache.get(guestId);
-            if (!entry || this.isExpired(entry)) return null;
-
-            return entry.dayScores?.[dayIndex] ?? null;
+            if (!entry || this.isExpired(entry)) {
+                console.warn(`[PlanCache] ⚠️ getDayScores: Không tìm thấy cache hoặc hết hạn cho guest: ${guestId}`);
+                return null;
+            }
+            const result = entry.dayScores?.[dayIndex] ?? null;
+            console.log(`[PlanCache] getDayScores ngày ${dayIndex}: ${result ? result.length + ' quán' : 'NULL'}`);
+            return result;
         } catch (error) {
             console.error('[PlanCache] Lỗi lấy DayScores:', error.message || error);
             return null;
