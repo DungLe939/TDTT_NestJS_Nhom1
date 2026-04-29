@@ -1,178 +1,149 @@
 import { Injectable } from '@nestjs/common';
-import axios from 'axios';
-import * as http from 'http';
-import { getDataConnect } from 'firebase-admin/data-connect';
-import { 
-    upsertPlanCache, 
-    getPlanCache, 
-    deletePlanCache, 
-    updateDayScores, 
-    updateUsedCategories,
-    connectorConfig
-} from '@dataconnect/admin-generated';
 
 /**
- * PlanCacheHelper: Bộ nhớ đệm (Cache) bền vững lưu tại PostgreSQL (Data Connect).
- * Giúp duy trì dữ liệu lịch trình ngay cả khi restart server và hỗ trợ đa người dùng.
+ * PlanCacheHelper: Bộ nhớ đệm lưu dữ liệu lịch trình trong RAM của server.
+ *
+ * === PHIÊN BẢN MỚI: IN-MEMORY CACHE ===
+ * - Không còn phụ thuộc vào Firebase Data Connect Emulator (port 9399).
+ * - Lưu trực tiếp vào Map trong RAM → cực nhanh, không cần kết nối ngoài.
+ * - TTL: 20 phút (tự xóa sau khi quá hạn).
+ * - Phù hợp cho demo và development: mỗi lần restart server cache sẽ reset,
+ *   nhưng trong một phiên thì hoạt động hoàn hảo.
+ *
+ * Nếu cần persistence sau này, có thể dùng Redis hoặc bật lại Data Connect.
  */
+
 interface CachedPlanData {
     rawRestaurants: any[];       // Danh sách quán đã lọc sơ bộ
     orderedPlan: any[];          // Kết quả phân cụm (đã được sắp xếp theo ngày)
     mealBudgetConfig: any;       // Cấu hình ngân sách từng bữa
     preferences: any;            // Sở thích người dùng
     usedCategories: string[];    // Các loại món đã chọn (tránh trùng lặp giữa các ngày)
-    dayScores: Record<number, any[]>; // Lưu trữ quán đã chấm điểm theo ngày: dayIndex -> scoredRestaurants
-    updatedAt: string;           // ISO Timestamp từ Data Connect
+    dayScores: Record<number, any[]>; // Lưu trữ quán đã chấm điểm theo ngày
+    updatedAt: number;           // Timestamp (ms) để tính TTL
 }
 
 @Injectable()
 export class PlanCacheHelper {
-    private readonly TTL = 20 * 60 * 1000; // 20 phút
-    private readonly isLocal = process.env.NODE_ENV !== 'production';
-    private dcUrl = 'http://127.0.0.1:9399/v1/projects/smart-tourism-abf26/locations/asia-southeast1/services/smart-tourism-abf26-service/connectors/example';
-    private agent = new http.Agent({ keepAlive: false });
+    private readonly TTL = 20 * 60 * 1000; // 20 phút tính bằng ms
+
+    // Map lưu cache trong RAM: guestId → CachedPlanData
+    private readonly memCache = new Map<string, CachedPlanData>();
 
     /**
-     * Helper gọi Emulator trực tiếp qua HTTP REST để né lỗi Auth Credentials của Admin SDK
+     * Kiểm tra và xóa cache đã hết hạn
      */
-    private async executeEmulator(operationType: 'query' | 'mutation', operationName: string, variables: any) {
-        const url = `${this.dcUrl}:execute${operationType === 'mutation' ? 'Mutation' : 'Query'}`;
-        const res = await axios.post(url, { operationName, variables }, { httpAgent: this.agent });
-        if (res.data.errors && res.data.errors.length > 0) {
-            throw new Error(JSON.stringify(res.data.errors));
-        }
-        return res.data;
+    private isExpired(entry: CachedPlanData): boolean {
+        return Date.now() - entry.updatedAt > this.TTL;
     }
 
-    // Lưu trữ dữ liệu chuẩn bị vào Cache (Data Connect)
+    /**
+     * set: Lưu dữ liệu chuẩn bị vào in-memory cache.
+     * Được gọi sau bước preparePlan (rawFilter + clustering).
+     */
     async set(guestId: string, data: Omit<CachedPlanData, 'updatedAt' | 'dayScores'>) {
         try {
-            const payload = {
-                guestId,
-                rawRestaurants: data.rawRestaurants,
-                orderedPlan: data.orderedPlan,
-                mealBudgetConfig: data.mealBudgetConfig,
-                preferences: data.preferences,
-                usedCategories: data.usedCategories,
-                dayScores: {}
-            };
-
-            if (this.isLocal) {
-                await this.executeEmulator('mutation', 'UpsertPlanCache', payload);
-            } else {
-                const dc = getDataConnect(connectorConfig);
-                await upsertPlanCache(dc, payload);
-            }
+            this.memCache.set(guestId, {
+                ...data,
+                dayScores: {},
+                updatedAt: Date.now(),
+            });
+            console.log(`[PlanCache] ✅ Đã lưu cache cho guest: ${guestId} (${data.rawRestaurants?.length || 0} quán, ${data.orderedPlan?.length || 0} ngày)`);
         } catch (error) {
-            console.error('[PlanCache] Lỗi ghi dữ liệu lên Data Connect:', error.message || error);
+            console.error('[PlanCache] Lỗi lưu cache:', error.message || error);
         }
     }
 
-    // Lấy dữ liệu từ Cache (Data Connect)
+    /**
+     * get: Lấy dữ liệu từ in-memory cache.
+     * Trả về null nếu không tìm thấy hoặc đã hết hạn TTL.
+     */
     async get(guestId: string): Promise<CachedPlanData | null> {
         try {
-            let entry: any = null;
-            if (this.isLocal) {
-                const res = await this.executeEmulator('query', 'GetPlanCache', { guestId });
-                entry = res.data?.planCache;
-            } else {
-                const dc = getDataConnect(connectorConfig);
-                const res = await getPlanCache(dc, { guestId });
-                entry = res.data?.planCache;
-            }
-            
-            if (!entry) return null;
-
-            // Kiểm tra xem dữ liệu còn sống (TTL) không
-            const updatedAt = new Date(entry.updatedAt).getTime();
-            if (Date.now() - updatedAt > this.TTL) {
-                if (this.isLocal) {
-                    await this.executeEmulator('mutation', 'DeletePlanCache', { guestId });
-                } else {
-                    const dc = getDataConnect(connectorConfig);
-                    await deletePlanCache(dc, { guestId });
-                }
+            const entry = this.memCache.get(guestId);
+            if (!entry) {
+                console.warn(`[PlanCache] ⚠️ Không tìm thấy cache cho guest: ${guestId}`);
                 return null;
             }
 
-            return entry as unknown as CachedPlanData;
+            if (this.isExpired(entry)) {
+                console.warn(`[PlanCache] ⏰ Cache đã hết hạn cho guest: ${guestId}, xóa và trả về null`);
+                this.memCache.delete(guestId);
+                return null;
+            }
+
+            return entry;
         } catch (error) {
-            console.error('[PlanCache] Lỗi đọc dữ liệu từ Data Connect:', error.message || error);
+            console.error('[PlanCache] Lỗi đọc cache:', error.message || error);
             return null;
         }
     }
 
-    // Lưu kết quả quán đã chấm điểm AI cho một ngày cụ thể
+    /**
+     * saveDayScores: Lưu kết quả quán đã chấm điểm AI cho một ngày cụ thể.
+     * Dùng cho tính năng "Đổi món" — tránh gọi lại AI Gemini.
+     */
     async saveDayScores(guestId: string, dayIndex: number, scoredRestaurants: any[]) {
         try {
-            let entry: any = null;
-            if (this.isLocal) {
-                const res = await this.executeEmulator('query', 'GetPlanCache', { guestId });
-                entry = res.data?.planCache;
-            } else {
-                const dc = getDataConnect(connectorConfig);
-                const res = await getPlanCache(dc, { guestId });
-                entry = res.data?.planCache;
-            }
-            
+            const entry = this.memCache.get(guestId);
             if (entry) {
-                const dayScores = (entry.dayScores as Record<number, any[]>) || {};
-                dayScores[dayIndex] = scoredRestaurants;
-                
-                if (this.isLocal) {
-                    await this.executeEmulator('mutation', 'UpdateDayScores', { guestId, dayScores });
-                } else {
-                    const dc = getDataConnect(connectorConfig);
-                    await updateDayScores(dc, { guestId, dayScores });
-                }
+                entry.dayScores[dayIndex] = scoredRestaurants;
+                entry.updatedAt = Date.now(); // Làm mới TTL khi có hoạt động
+                console.log(`[PlanCache] ✅ Đã lưu dayScores ngày ${dayIndex} cho guest: ${guestId} (${scoredRestaurants.length} quán)`);
+            } else {
+                console.warn(`[PlanCache] ⚠️ saveDayScores: Không tìm thấy cache cho guest: ${guestId}`);
             }
         } catch (error) {
-            console.error('[PlanCache] Lỗi cập nhật DayScores lên Data Connect:', error.message || error);
+            console.error('[PlanCache] Lỗi cập nhật DayScores:', error.message || error);
         }
     }
 
-    // Lấy danh sách quán đã chấm điểm của một ngày từ Cache
+    /**
+     * getDayScores: Lấy danh sách quán đã chấm điểm của một ngày từ cache.
+     * Dùng cho endpoint swapOptions.
+     */
     async getDayScores(guestId: string, dayIndex: number): Promise<any[] | null> {
         try {
-            let entry: any = null;
-            if (this.isLocal) {
-                const res = await this.executeEmulator('query', 'GetPlanCache', { guestId });
-                entry = res.data?.planCache;
-            } else {
-                const dc = getDataConnect(connectorConfig);
-                const res = await getPlanCache(dc, { guestId });
-                entry = res.data?.planCache;
-            }
-            
-            if (entry && entry.dayScores) {
-                const dayScores = entry.dayScores as Record<number, any[]>;
-                if (dayScores[dayIndex]) {
-                    return dayScores[dayIndex];
-                }
-            }
-            return null;
+            const entry = this.memCache.get(guestId);
+            if (!entry || this.isExpired(entry)) return null;
+
+            return entry.dayScores?.[dayIndex] ?? null;
         } catch (error) {
-            console.error('[PlanCache] Lỗi lấy DayScores từ Data Connect:', error.message || error);
+            console.error('[PlanCache] Lỗi lấy DayScores:', error.message || error);
             return null;
         }
     }
 
-    // Cập nhật danh sách món ăn đã dùng để ngày tiếp theo không bị trùng
+    /**
+     * updateUsedCategories: Cập nhật danh sách loại món đã ăn.
+     * Giúp AI không chọn trùng category giữa các ngày.
+     */
     async updateUsedCategories(guestId: string, categories: string[]) {
         try {
-            if (this.isLocal) {
-                await this.executeEmulator('mutation', 'UpdateUsedCategories', { guestId, usedCategories: categories });
-            } else {
-                const dc = getDataConnect(connectorConfig);
-                await updateUsedCategories(dc, { guestId, usedCategories: categories });
+            const entry = this.memCache.get(guestId);
+            if (entry) {
+                entry.usedCategories = categories;
+                entry.updatedAt = Date.now();
             }
         } catch (error) {
-            console.error('[PlanCache] Lỗi cập nhật UsedCategories lên Data Connect:', error.message || error);
+            console.error('[PlanCache] Lỗi cập nhật UsedCategories:', error.message || error);
         }
     }
 
-    // Dọn dẹp các cache đã quá hạn
+    /**
+     * cleanup: Dọn dẹp tất cả các cache đã hết hạn.
+     * Có thể gọi định kỳ nếu cần giải phóng RAM.
+     */
     async cleanup() {
-        // Logic dọn dẹp hàng loạt có thể thực hiện bằng SQL trực tiếp nếu cần
+        let cleaned = 0;
+        this.memCache.forEach((entry, guestId) => {
+            if (this.isExpired(entry)) {
+                this.memCache.delete(guestId);
+                cleaned++;
+            }
+        });
+        if (cleaned > 0) {
+            console.log(`[PlanCache] 🧹 Đã dọn ${cleaned} cache hết hạn. Còn ${this.memCache.size} active.`);
+        }
     }
 }

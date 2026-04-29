@@ -444,8 +444,8 @@ export class SchedulerService {
           ? calculateDistance(
               refLat,
               refLng,
-              res.location.coordinates[1],
-              res.location.coordinates[0],
+              res.location?.coordinates?.[1] ?? 0,
+              res.location?.coordinates?.[0] ?? 0,
             )
           : 0;
 
@@ -489,5 +489,40 @@ export class SchedulerService {
       success: true,
       options: finalOptions,
     };
+  }
+
+  /**
+   * getAllDishes: Trả về toàn bộ danh sách quán ăn + món ăn từ cache của phiên hiện tại.
+   * Được gọi khi user click "Ťhêm bữa ăn phụ" để AddSnackModal hiển thị tất cả món,
+   * không còn lọc theo isSnack nữa.
+   */
+  async getAllDishes(guestId: string) {
+    const cache = await this.planCacheHelper.get(guestId);
+    if (cache && cache.rawRestaurants && cache.rawRestaurants.length > 0) {
+      // Lấy từ cache phiên của guest (dữ liệu đã lọc theo vị trí + giá)
+      return cache.rawRestaurants.map((res: any) => ({
+        restaurantId: res.id,
+        restaurantName: res.name,
+        address: res.address,
+        location: res.location,
+        rating: res.rating || 4.0,
+        priceRange: res.priceRange || 2,
+        openingHours: res.openingHours || { open: '07:00', close: '22:00' },
+        menu: res.menu || [],
+      }));
+    }
+
+    // Fallback: nếu chưa có cache thì lấy toàn bộ dữ liệu ShopeeFood
+    const allRestaurants = this.shopeeFoodLoader.getAllRestaurants();
+    return allRestaurants.map((res) => ({
+      restaurantId: res.id,
+      restaurantName: res.name,
+      address: res.address,
+      location: res.location,
+      rating: res.rating || 4.0,
+      priceRange: res.priceRange || 2,
+      openingHours: res.openingHours || { open: '07:00', close: '22:00' },
+      menu: res.menu || [],
+    }));
   }
 }

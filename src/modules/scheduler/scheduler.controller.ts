@@ -141,6 +141,21 @@ export class SchedulerController {
     };
   }
 
+  // endpoint: /schedule/allDishes
+  // Lấy toàn bộ danh sách quán ăn + món ăn cho tính năng "Thêm bữa ăn phụ"
+  // Không còn lọc theo isSnack nữa — trả về TẤT CẢ, frontend tự filter theo category
+  @Post('allDishes')
+  async getAllDishes(@Req() req: Request) {
+    try {
+      const guestId = (req as any).guest_id;
+      const dishes = await this.schedulerService.getAllDishes(guestId);
+      return { success: true, data: dishes };
+    } catch (error) {
+      console.error('[AllDishes Error]:', error);
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
   // endpoint: /schedule/route
   // Tìm đường đi ngắn nhất giữa 2 điểm
   @Post('route')

@@ -154,16 +154,13 @@ export class ShopeeFoodLoader implements OnModuleInit {
       else priceRange = 3;
     }
 
-    const snackKeywords = ['trà', 'cà phê', 'cafe', 'coffee', 'sinh tố', 'nước ép', 'kem', 'bánh', 'chè', 'sữa', 'smoothie', 'juice', 'trân châu', 'matcha', 'yogurt'];
     const menu = (shop.menu || shop.foods || []).map((food: any) => {
-      const nameLower = food.name.toLowerCase();
-      const isSnack = snackKeywords.some((kw) => nameLower.includes(kw));
       return {
         name: food.name,
         price: food.price || food.price_value || 0,
         description: food.description || '',
+        // category lấy từ data ShopeeFood có sẵn (group_name là nhóm món từ ShopeeFood)
         category: food.category || food.group_name || 'Khác',
-        isSnack,
         imageUrl: food.image_url || '',
       };
     });
@@ -203,36 +200,13 @@ export class ShopeeFoodLoader implements OnModuleInit {
       else priceRange = 3; // Sang
     }
 
-    // Danh sách từ khóa để nhận diện món ăn vặt (snack)
-    const snackKeywords = [
-      'trà',
-      'cà phê',
-      'cafe',
-      'coffee',
-      'sinh tố',
-      'nước ép',
-      'kem',
-      'bánh',
-      'chè',
-      'sữa',
-      'smoothie',
-      'juice',
-      'trân châu',
-      'matcha',
-      'yogurt',
-    ];
-
-    // Transform menu items
+    // Transform menu items — category lấy từ data ShopeeFood có sẵn, không cần AI sinh lại
     const menu = (shop.foodItems_on_shop || []).map((food: any) => {
-      const nameLower = food.name.toLowerCase();
-      const isSnack = snackKeywords.some((kw) => nameLower.includes(kw));
-
       return {
         name: food.name,
         price: food.price || 0,
         description: food.description || '',
         category: food.category?.name || food.groupName || 'Khác',
-        isSnack,
         imageUrl: food.imageUrl || '',
       };
     });

@@ -3,31 +3,17 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { RestaurantDto } from '../../restaurants/dto/restaurant.dto';
 
 /**
- * DANH SÁCH CATEGORY CHUẨN (Tiếng Việt, khái quát)
- * AI bắt buộc phải chọn từ danh sách này.
- * Dùng chung cho cả Gemini scoring lẫn Fallback trong scoring.ts.
- */
-export const VALID_CATEGORIES = [
-  'Món nước',                   // Phở, bún, mì, hủ tiếu, miến...
-  'Cơm - Xôi - Cháo',          // Cơm tấm, cơm gà, xôi, cháo...
-  'Bánh mì & Món cuốn',        // Bánh mì, bánh cuốn, bánh xèo, gỏi cuốn...
-  'Ăn vặt & Đường phố',        // Ốc, nem, bánh tráng, xiên que...
-  'Lẩu & Đồ nướng',            // Lẩu, BBQ, nướng, xiên...
-  'Trà & Cà phê',              // Cà phê, trà sữa, trà đào...
-  'Tráng miệng & Giải khát',   // Chè, kem, sinh tố, nước ép, nước ngọt...
-  'Đặc sản địa phương',        // Các món đặc trưng vùng miền, không thuộc nhóm trên
-] as const;
-
-/**
- * GeminiScoringHelper: Hỗ trợ chấm điểm nhà hàng bằng AI.
+ * GeminiScoringHelper: Chấm điểm nhà hàng theo sở thích người dùng bằng AI.
  *
- * === CHIẾN LƯỢC TỐI ƯU (Đã benchmark) ===
- * 1. MODEL: gemini-2.5-flash-lite (~1s/request), KHÔNG dùng JSON mode.
- * 2. BACKUP: gemini-2.5-flash khi lite lỗi.
- * 3. CHUNK SIZE = 5 quán + tối đa 8 món/quán → tránh response quá dài bị cắt.
- * 4. PARALLEL: Promise.all tất cả chunk.
- * 5. RETRY: 3 lần/chunk.
- * 6. CATEGORY CỐ ĐỊNH: 8 nhóm khái quát tiếng Việt.
+ * === CHIẾN LƯỢC TỐI ƯU ===
+ * 1. Prompt CỰC NGẮN: AI chỉ trả về điểm 3 bữa cho mỗi quán (không sinh category, không sinh isSnack).
+ *    → Response ngắn ~80% so với prompt cũ → nhanh hơn đáng kể.
+ * 2. CHUNK_SIZE = 8 quán/chunk (tăng từ 5 vì response nhỏ hơn nhiều).
+ * 3. Gọi SONG SONG (Promise.all) tất cả chunk.
+ * 4. MERGE: Sau khi nhận điểm từ AI, merge lại với data gốc để gắn đầy đủ
+ *    menu, address, location, rating, priceRange, openingHours, coverImage.
+ *    → menu[].category lấy từ data ShopeeFood (đúng & không cần AI sinh lại).
+ * 5. RETRY: 3 lần/chunk, lần cuối dùng model backup.
  */
 @Injectable()
 export class GeminiScoringHelper {
@@ -39,7 +25,7 @@ export class GeminiScoringHelper {
     const apiKey = process.env.GEMINI_API_KEY || '';
     this.genAI = new GoogleGenerativeAI(apiKey);
 
-    // Model chính: gemini-2.5-flash-lite — siêu nhanh (~1s), KHÔNG bật JSON mode
+    // Model chính: gemini-2.5-flash-lite — nhanh, phù hợp scoring đơn giản
     this.fastModel = this.genAI.getGenerativeModel({
       model: 'gemini-2.5-flash-lite',
     });
@@ -51,15 +37,18 @@ export class GeminiScoringHelper {
   }
 
   /**
-   * scoreRestaurantsWithAI: Chia nhỏ → gọi song song → gộp kết quả.
+   * scoreRestaurantsWithAI:
+   * 1. Chia nhà hàng thành chunk nhỏ.
+   * 2. Gửi từng chunk cho Gemini để lấy điểm 3 bữa.
+   * 3. Merge kết quả AI với data gốc (menu, location, rating...).
+   * 4. Trả về mảng nhà hàng đã được chấm điểm + đầy đủ metadata.
    */
   async scoreRestaurantsWithAI(
     restaurants: RestaurantDto[],
     preferences: any,
     mealBudgets: any,
   ): Promise<any[]> {
-    // Chunk nhỏ hơn (5 quán) để tránh response quá dài bị lỗi JSON
-    const CHUNK_SIZE = 5;
+    const CHUNK_SIZE = 8; // Tăng từ 5 lên 8 vì prompt mới nhỏ hơn nhiều
     const chunks: RestaurantDto[][] = [];
     for (let i = 0; i < restaurants.length; i += CHUNK_SIZE) {
       chunks.push(restaurants.slice(i, i + CHUNK_SIZE));
@@ -68,19 +57,57 @@ export class GeminiScoringHelper {
     const startTime = Date.now();
     console.log(`🧠 [Gemini] Chấm điểm ${restaurants.length} quán (${chunks.length} chunk x ${CHUNK_SIZE}, SONG SONG)`);
 
-    const chunkPromises: Promise<any[]>[] = chunks.map((chunk, index) =>
+    // Gọi song song tất cả chunk để tiết kiệm thời gian
+    const chunkPromises = chunks.map((chunk, index) =>
       this.scoreChunkWithRetry(chunk, preferences, mealBudgets, index),
     );
-    const results = await Promise.all(chunkPromises);
+    const scoresResults = await Promise.all(chunkPromises);
 
-    const merged = results.flat();
+    // scoresResults: mảng [{id, scores}] từ AI
+    // Cần merge lại với data gốc để có đầy đủ menu, location, rating...
+    const scoresMap = new Map<string, any>();
+    scoresResults.flat().forEach((item: any) => {
+      if (item?.id) scoresMap.set(item.id, item);
+    });
+
+    // Merge: với mỗi quán gốc, gắn kèm scores từ AI (nếu có)
+    const merged = restaurants.map((res: any) => {
+      const aiResult = scoresMap.get(res.id);
+      return {
+        id: res.id,
+        restaurantName: res.name || res.restaurantName,
+        address: res.address,
+        location: res.location,
+        rating: res.rating || 4.0,
+        priceRange: res.priceRange || 2,
+        openingHours: res.openingHours || { open: '07:00', close: '22:00' },
+        coverImage: res.coverImage || '',
+        // menu giữ nguyên từ data ShopeeFood — category đã có sẵn
+        menu: (res.menu || []).map((m: any) => ({
+          name: m.name,
+          price: m.price,
+          category: m.category || 'Khác', // Lấy từ ShopeeFood, không cần AI sinh lại
+          imageUrl: m.imageUrl || '',
+          description: m.description || '',
+        })),
+        // scores lấy từ AI; nếu AI không trả được thì dùng fallback
+        scores: aiResult?.scores || {
+          breakfast: { score: Math.floor(Math.random() * 40) + 50, suggestedTime: '08:00' },
+          lunch: { score: Math.floor(Math.random() * 40) + 50, suggestedTime: '12:30' },
+          dinner: { score: Math.floor(Math.random() * 40) + 50, suggestedTime: '19:00' },
+        },
+      };
+    });
+
     const elapsed = Date.now() - startTime;
-    console.log(`✅ [Gemini] Hoàn tất! ${merged.length}/${restaurants.length} kết quả trong ${elapsed}ms`);
+    console.log(`✅ [Gemini] Hoàn tất! ${merged.length}/${restaurants.length} quán trong ${elapsed}ms`);
     return merged;
   }
 
   /**
-   * Gọi Gemini cho 1 chunk, retry tối đa 3 lần.
+   * Gọi Gemini cho 1 chunk với retry tối đa 3 lần.
+   * Prompt RÚT GỌN: Chỉ hỏi điểm 3 bữa, không sinh category/isSnack.
+   * → Response ngắn ~80% → parse nhanh hơn, ít lỗi JSON hơn.
    */
   private async scoreChunkWithRetry(
     chunk: RestaurantDto[],
@@ -90,26 +117,31 @@ export class GeminiScoringHelper {
   ): Promise<any[]> {
     const MAX_RETRIES = 3;
 
-    // Minify + giới hạn tối đa 8 món/quán để tránh response quá dài
+    // Chỉ gửi id + name + tối đa 5 tên món (để AI hiểu loại quán)
     const minifiedData = chunk.map((r: any) => ({
       id: r.id,
       name: r.name || r.restaurantName,
-      menu: (r.menu || []).slice(0, 8).map((m: any) => ({
-        name: m.name,
-        price: m.price,
-      })),
+      // Gửi tên món để AI biết quán bán gì (phục vụ matching sở thích/dị ứng)
+      dishes: (r.menu || []).slice(0, 5).map((m: any) => m.name),
     }));
 
-    const categoryList = VALID_CATEGORIES.map(c => `"${c}"`).join(', ');
+    const prompt = `Chấm điểm phù hợp của các nhà hàng cho từng bữa ăn. CHỈ TRẢ VỀ JSON THUẦN TÚY, KHÔNG thêm text hay markdown.
 
-    const prompt = `Phân tích và chấm điểm nhà hàng. CHỈ TRẢ VỀ JSON THUẦN TÚY, KHÔNG thêm text hay markdown.
+KHÁCH HÀNG:
+- Thích: ${preferences.favoriteFoods?.join(', ') || 'Không có'}
+- Không thích: ${preferences.dislikedFoods?.join(', ') || 'Không có'}
+- Dị ứng (bắt buộc score = -999): ${preferences.allergies?.join(', ') || 'Không có'}
+- Khẩu vị: ${preferences.states?.join(', ') || 'Không có'}
 
-KHÁCH HÀNG: Thích: ${preferences.favoriteFoods?.join(', ') || 'Không'}. Ghét: ${preferences.dislikedFoods?.join(', ') || 'Không'}. Dị ứng(điểm=-999): ${preferences.allergies?.join(', ') || 'Không'}. Khẩu vị: ${preferences.states?.join(', ') || 'Không'}.
-NGÂN SÁCH: Sáng ${mealBudgets.breakfast}đ, Trưa ${mealBudgets.lunch}đ, Tối ${mealBudgets.dinner}đ.
-ĐIỂM: Phù hợp buổi +50, sở thích +30, ngân sách +30. isSnack=true cho đồ uống/ăn nhẹ.
-BẮT BUỘC category là MỘT trong: ${categoryList}
+NGÂN SÁCH/NGƯỜI: Sáng ${mealBudgets.breakfast}đ, Trưa ${mealBudgets.lunch}đ, Tối ${mealBudgets.dinner}đ.
 
-[{"id":"...","restaurantName":"...","menu":[{"name":"...","price":0,"score":0,"category":"...","isSnack":false,"imageUrl":""}],"scores":{"breakfast":{"score":0,"suggestedTime":"08:00"},"lunch":{"score":0,"suggestedTime":"12:30"},"dinner":{"score":0,"suggestedTime":"19:00"}}}]
+CÁCH CHẤM (0-100):
+- Phân tích tên quán + tên các món xem phù hợp sở thích không → +30
+- Phù hợp loại bữa (sáng/trưa/tối) → +50
+- Quán có món gây dị ứng → tất cả scores = -999
+
+FORMAT JSON (chỉ trả mảng này, không gì khác):
+[{"id":"...","scores":{"breakfast":{"score":80,"suggestedTime":"08:00"},"lunch":{"score":90,"suggestedTime":"12:30"},"dinner":{"score":70,"suggestedTime":"19:00"}}}]
 
 DỮ LIỆU:
 ${JSON.stringify(minifiedData)}`;
@@ -122,7 +154,7 @@ ${JSON.stringify(minifiedData)}`;
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
 
-        // Trích xuất JSON từ response (bỏ markdown, text thừa)
+        // Trích xuất JSON từ response (bỏ markdown nếu có)
         const jsonMatch = responseText.match(/\[[\s\S]*\]/);
         const cleanJson = jsonMatch
           ? jsonMatch[0]
@@ -141,7 +173,7 @@ ${JSON.stringify(minifiedData)}`;
       }
     }
 
-    console.warn(`  ⚠️ Chunk ${chunkIndex + 1}: Hết ${MAX_RETRIES} lần, dùng Fallback`);
-    return [];
+    console.warn(`  ⚠️ Chunk ${chunkIndex + 1}: Hết ${MAX_RETRIES} lần retry, dùng fallback điểm ngẫu nhiên`);
+    return []; // Trả về rỗng → scoring.ts sẽ dùng fallback scores ngẫu nhiên
   }
 }
