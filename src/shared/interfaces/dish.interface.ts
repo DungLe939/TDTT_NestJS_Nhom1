@@ -6,6 +6,8 @@ export interface IDish {
   price: number;
   tags: string[];
   rating: number;
+  image_url?: string;
+  description?: string;
   restaurantId: string;
   restaurant?: IRestaurant;
 }

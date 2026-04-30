@@ -78,6 +78,8 @@ export class RestaurantsController {
         id: d.id,
         name: d.name,
         price: d.price,
+        image_url: d.image_url,
+        description: d.description,
       }));
 
     const distanceKm = calculateDistance(
@@ -96,6 +98,7 @@ export class RestaurantsController {
       lng: selectedRestaurant.location.lng,
       openingHours: selectedRestaurant.opening_hours || '08:00 - 22:00',
       totalReviews: Math.floor(Math.random() * 500) + 50,
+      cover_image: selectedRestaurant.cover_image,
     };
 
     const relatedFoods = allDishes
@@ -106,6 +109,7 @@ export class RestaurantsController {
         name: d.name,
         price: d.price,
         rating: d.rating,
+        image_url: d.image_url,
         groupName: d.tags?.[0] || 'Món ăn',
         shop: { id: d.restaurantId, name: d.restaurant!.name }
       }));
@@ -118,6 +122,7 @@ export class RestaurantsController {
         name: r.name,
         address: r.address || `Địa chỉ tại Quận 1 (ID: ${r.id})`,
         rating: r.rating || 4.0,
+        cover_image: r.cover_image,
       }));
 
     return {
@@ -141,7 +146,12 @@ export class RestaurantsController {
     const restId = id.split('_')[0];
     const rest = allRestaurants.find(r => r.id === restId);
     if (!rest) throw new NotFoundException();
-    return { id, name: `Món ${id}`, restaurant: rest };
+    return { 
+      id, 
+      name: `Món ${id}`, 
+      restaurant: rest,
+      image_url: rest.cover_image, // Fallback to restaurant image for single dish if needed
+    };
   }
 
   @Get('restaurants')
@@ -183,7 +193,7 @@ export class RestaurantsController {
         id: d.id,
         name: d.name,
         price: d.price,
-        image: `https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=200&q=80`
+        image_url: d.image_url
       }));
 
     let mapInfo: any = null;
@@ -207,6 +217,7 @@ export class RestaurantsController {
       lng: restaurant.location.lng,
       rating: restaurant.rating || 4.0,
       openingHours: restaurant.opening_hours || '08:00 - 22:00',
+      cover_image: restaurant.cover_image,
       menu,
       map: mapInfo
     };
@@ -235,6 +246,7 @@ export class RestaurantsController {
         name: r.name,
         address: r.address || `Địa chỉ tại Quận 1 (ID: ${r.id})`,
         rating: r.rating || 4.0,
+        cover_image: r.cover_image,
       }));
 
     if (recommendedShops.length < 4) {
@@ -246,6 +258,7 @@ export class RestaurantsController {
           name: r.name,
           address: r.address || `Địa chỉ tại Quận 1 (ID: ${r.id})`,
           rating: r.rating || 4.0,
+          cover_image: r.cover_image,
         }));
       recommendedShops.push(...fallback);
     }

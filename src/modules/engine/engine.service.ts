@@ -207,9 +207,12 @@ export class EngineService {
         price: dish.price,
         rating: dish.rating,
         tags: dish.tags,
+        image_url: dish.image_url,
+        description: dish.description,
         restaurant: {
           id: dish.restaurant!.id || '',
           name: dish.restaurant!.name,
+          cover_image: dish.restaurant!.cover_image,
         },
         finalScore: Math.round(item.finalScore * 100) / 100,
         matchPercentage: Math.min(100, Math.max(0, matchPct)),

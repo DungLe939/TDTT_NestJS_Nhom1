@@ -54,4 +54,6 @@ export interface IRestaurant {
 
   /** Giờ hoạt động — vd: "07:00-22:00" */
   opening_hours?: string;
+  /** Ảnh bìa nhà hàng */
+  cover_image?: string;
 }

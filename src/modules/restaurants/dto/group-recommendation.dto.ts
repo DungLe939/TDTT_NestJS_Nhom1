@@ -116,6 +116,7 @@ export class RestaurantInfoDto {
   location!: { lat: number; lng: number };
   distance!: number;
   tags?: string[];
+  cover_image?: string;
 }
 
 /** Thông tin món ăn trả về trong kết quả gợi ý. */
@@ -125,9 +126,12 @@ export class DishInfoDto {
   price!: number;
   rating!: number;
   tags!: string[];
+  image_url?: string;
+  description?: string;
   restaurant!: {
     id: string;
     name: string;
+    cover_image?: string;
   };
   /** Điểm cuối cùng (raw) của thuật toán xếp hạng */
   finalScore?: number;
