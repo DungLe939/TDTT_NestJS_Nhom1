@@ -5,9 +5,6 @@ import { RestaurantDto } from '../../restaurants/dto/restaurant.dto';
 
 /**
  * GeminiScoringHelper: Chấm điểm nhà hàng theo sở thích người dùng bằng AI.
- *
- * === KIẾN TRÚC MULTI-LLM (Groq + Gemini) ===
- *
  * [QUAN TRỌNG ĐỂ REVIEW]:
  * Hệ thống sử dụng 2 nhà cung cấp AI cùng lúc để đảm bảo tốc độ + độ tin cậy:
  *
@@ -24,10 +21,9 @@ import { RestaurantDto } from '../../restaurants/dto/restaurant.dto';
  *    - Tối đa 3 chunk chạy song song (thay vì tất cả cùng lúc)
  *    - Giảm 90% nguy cơ bị rate-limit từ cả hai provider
  *
- * 4. RETRY: Mỗi chunk thử tối đa 3 lần:
- *    - Lần 1-2: Groq (nhanh)
- *    - Lần 3: Gemini (backup)
- *    → Gần như KHÔNG BAO GIỜ rơi vào fallback ngẫu nhiên
+ * 4. RETRY: Mỗi chunk thử tối đa 6 lần:
+ *    - Lần 1-5: Groq (nhanh)
+ *    - Lần 6: Gemini (backup)
  */
 @Injectable()
 export class GeminiScoringHelper {
@@ -40,7 +36,7 @@ export class GeminiScoringHelper {
   private readonly GROQ_MODEL = 'llama-3.3-70b-versatile';
 
   constructor() {
-    // === Khởi tạo Groq (Model chính — CỰC NHANH) ===
+    // === Khởi tạo Groq (Model chính) ===
     this.groq = new Groq({
       apiKey: process.env.GROQ_API_KEY || '',
     });
@@ -66,7 +62,7 @@ export class GeminiScoringHelper {
     preferences: any,
     mealBudgets: any,
   ): Promise<any[]> {
-    // Tăng chunk size lên 15 vì Groq xử lý rất nhanh
+    // Tăng chunk size lên 15 
     const CHUNK_SIZE = 15;
     const chunks: RestaurantDto[][] = [];
     for (let i = 0; i < restaurants.length; i += CHUNK_SIZE) {
@@ -112,7 +108,7 @@ export class GeminiScoringHelper {
         priceRange: res.priceRange || 2,
         openingHours: res.openingHours || { open: '07:00', close: '22:00' },
         coverImage: res.coverImage || '',
-        // menu giữ nguyên từ data ShopeeFood — category đã có sẵn
+        // menu giữ nguyên từ data ShopeeFood 
         menu: (res.menu || []).map((m: any) => ({
           name: m.name,
           price: m.price,
@@ -136,16 +132,18 @@ export class GeminiScoringHelper {
 
   /**
    * Tạo prompt chung cho cả Groq và Gemini.
-   * Prompt RÚT GỌN: Chỉ hỏi điểm 3 bữa, không sinh category/isSnack.
+   * LLM vừa chấm điểm quán VỪA đề xuất món phù hợp nhất cho mỗi bữa.
    */
   private buildPrompt(chunk: RestaurantDto[], preferences: any, mealBudgets: any): string {
+    // Gửi nhiều món hơn (tối đa 10) để LLM có đủ lựa chọn
     const minifiedData = chunk.map((r: any) => ({
       id: r.id,
       name: r.name || r.restaurantName,
-      dishes: (r.menu || []).slice(0, 5).map((m: any) => m.name),
+      dishes: (r.menu || []).slice(0, 10).map((m: any) => m.name),
     }));
 
-    return `Chấm điểm phù hợp của các nhà hàng cho từng bữa ăn. CHỈ TRẢ VỀ JSON THUẦN TÚY.
+    return `Bạn là chuyên gia ẩm thực Việt Nam. Hãy chấm điểm các nhà hàng và ĐỀ XUẤT MÓN PHÙ HỢP NHẤT cho từng bữa ăn.
+CHỈ TRẢ VỀ JSON THUẦN TÚY, KHÔNG có markdown hay text giải thích.
 
 KHÁCH HÀNG:
 - Thích: ${preferences.favoriteFoods?.join(', ') || 'Không có'}
@@ -155,18 +153,21 @@ KHÁCH HÀNG:
 
 NGÂN SÁCH/NGƯỜI: Sáng ${mealBudgets.breakfast}đ, Trưa ${mealBudgets.lunch}đ, Tối ${mealBudgets.dinner}đ.
 
-CÁCH CHẤM (0-100):
-1. Phù hợp với bữa ăn: +50 điểm
-   - BỮA SÁNG (breakfast): Phù hợp với các món NHẸ, NHANH, dễ ăn buổi sáng như: phở, bún, hủ tiếu, bánh mì, xôi, bánh cuốn, cháo, bánh canh, bún bò, bún riêu, bánh ướt, dimsum, mì, cơm tấm. KHÔNG phù hợp: lẩu, nướng BBQ, buffet, hải sản nặng, nhậu.
-   - BỮA TRƯA (lunch): Phù hợp với các món ĐẦY ĐỦ DINH DƯỠNG, no lâu như: cơm, bún, phở, mì, cơm tấm, cơm văn phòng, bánh canh, bún chả, bún đậu. Phù hợp hầu hết các món chính.
-   - BỮA TỐI (dinner): Phù hợp với các món SANG TRỌNG, THỊNH SOẠN, phù hợp đi cùng nhóm bạn: lẩu, nướng BBQ, hải sản, steak, nhà hàng, buffet, pizza, sushi, dimsum, cơm niêu. KHÔNG phù hợp: xôi, bánh mì, đồ ăn vặt nhẹ, chè, trà sữa.
-   Đây là tiêu chí quan trọng nhất
+NHIỆM VỤ: Với MỖI nhà hàng, hãy:
+1. Chấm điểm cho từng bữa dựa trên:
+   - Phù hợp bữa ăn (cộng thêm từ 0 tới 60 điểm, QUAN TRỌNG NHẤT):
+     * SÁNG: Món nhẹ, nhanh — phở, bún, hủ tiếu, bánh mì, xôi, cháo, bánh cuốn, bánh canh, mì, cơm tấm. KHÔNG phù hợp: lẩu, nướng, buffet.
+     * TRƯA: Món chính, no — cơm, bún, phở, mì, cơm tấm, bún chả, bún đậu. Phù hợp hầu hết món chính.
+     * TỐI: Món sang, thịnh soạn — lẩu, nướng BBQ, hải sản, steak, buffet, pizza, sushi, cơm niêu. KHÔNG phù hợp: xôi, bánh mì, đồ ăn vặt, chè, trà sữa, ngũ cốc, bánh bao.
+   - Phù hợp sở thích => cộng thêm từ 0 tới 40 điểm 
+   - Dị ứng → score = -999
 
-2. Phù hợp sở thích khách hàng → +30 điểm
-3. Quán có món gây dị ứng → tất cả scores = -999
+  2. ĐỀ XUẤT MÓN (recommendedDish): Chọn 1 MÓN ĂN CHÍNH phù hợp nhất cho bữa đó từ danh sách "dishes".
+   QUAN TRỌNG: KHÔNG chọn đồ uống (trà, cà phê, nước ngọt, sinh tố), topping (phần thêm), hoặc gia vị. Chỉ chọn MÓN ĂN CHÍNH.
+   Nếu quán không có món phù hợp cho bữa đó → recommendedDish = null, score = 0.
 
-FORMAT JSON (chỉ trả mảng này, không gì khác):
-[{"id":"...","scores":{"breakfast":{"score":80,"suggestedTime":"08:00"},"lunch":{"score":90,"suggestedTime":"12:30"},"dinner":{"score":70,"suggestedTime":"19:00"}}}]
+FORMAT JSON (chỉ trả mảng này):
+[{"id":"...","scores":{"breakfast":{"score":...,"suggestedTime":"...","recommendedDish":"..."},"lunch":{"score":...,"suggestedTime":"...","recommendedDish":"..."},"dinner":{"score":...,"suggestedTime":"...","recommendedDish":"..."}}}]
 
 DỮ LIỆU:
 ${JSON.stringify(minifiedData)}`;
@@ -188,7 +189,7 @@ ${JSON.stringify(minifiedData)}`;
         { role: 'user', content: prompt },
       ],
       temperature: 0.3,
-      max_tokens: 2048,
+      max_tokens: 3000,
     });
 
     const text = response.choices[0]?.message?.content || '[]';
@@ -223,10 +224,9 @@ ${JSON.stringify(minifiedData)}`;
 
   /**
    * Retry logic cho 1 chunk:
-   * - Lần 1: Groq (nhanh nhất)
-   * - Lần 2: Groq (thử lại sau delay)
-   * - Lần 3: Gemini (backup an toàn)
-   * → Đảm bảo gần như 100% thành công, không rơi vào fallback.
+   * - Lần 1-5: Groq (nhanh nhất)
+   * - Lần 6: Gemini (backup an toàn)
+   * → Đảm bảo gần như 100% thành công.
    */
   private async scoreChunkWithRetry(
     chunk: RestaurantDto[],

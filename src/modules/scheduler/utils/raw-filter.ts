@@ -6,14 +6,11 @@ import { ShopeeFoodLoader } from './shopeefood-loader';
 /**
  * RawFilterHelper: Hỗ trợ lọc danh sách nhà hàng thô từ dữ liệu ShopeeFood.
  * 
- * PHIÊN BẢN MỚI: Thay vì query Firestore theo guest_id, giờ lấy trực tiếp
- * từ ShopeeFoodLoader (dữ liệu crawl sẵn từ ShopeeFood, dùng chung cho tất cả user).
- * 
  * Thực hiện các bước lọc cơ bản về giá, khoảng cách địa lý và đánh giá.
  */
 @Injectable()
 export class RawFilterHelper {
-  constructor(private readonly shopeeFoodLoader: ShopeeFoodLoader) {}
+  constructor(private readonly shopeeFoodLoader: ShopeeFoodLoader) { }
 
   /**
    * rawData: Lấy dữ liệu nhà hàng ShopeeFood và thực hiện lọc sơ bộ.
@@ -30,9 +27,8 @@ export class RawFilterHelper {
     travelDays: number = 3,
   ): Promise<any[]> {
     /**
-     * 1. Lấy dữ liệu từ ShopeeFoodLoader thay vì Firestore.
-     * Dữ liệu ShopeeFood đã được load sẵn khi server khởi động,
-     * không cần query DB theo guest_id nữa (dữ liệu dùng chung).
+     * 1. Lấy dữ liệu từ ShopeeFoodLoader
+     * Dữ liệu ShopeeFood đã được load sẵn khi server khởi động
      */
     const allRestaurants = this.shopeeFoodLoader.getAllRestaurants();
 
@@ -49,7 +45,7 @@ export class RawFilterHelper {
     const maxRadius = 15000 + travelDays * 3000;
 
     // Giới hạn số lượng kết quả
-    const limitCount = Math.max(56, travelDays * 20); // Tối thiểu lấy hết 56 quán
+    const limitCount = Math.max(50, travelDays * 20); // Tối thiểu lấy hết 50 quán
 
     /**
      * 3. Lọc sơ bộ:
@@ -58,7 +54,7 @@ export class RawFilterHelper {
     const rawRestaurants = allRestaurants
       .map((restaurant) => ({
         ...restaurant,
-        guest_id, // Gắn guest_id để tương thích với code cũ (PlanCache, Scoring...)
+        guest_id,
       }))
       .filter((restaurant) => {
         // Lọc theo mức giá

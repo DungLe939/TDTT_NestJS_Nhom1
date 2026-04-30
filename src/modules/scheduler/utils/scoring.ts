@@ -98,33 +98,42 @@ export class ScoringHelper {
       const dayMealsResult: any = {};
 
       /**
-       * [QUAN TRỌNG ĐỂ REVIEW]: Bộ lọc TOPPING/MÓN PHỤ
-       * Loại bỏ các món không phải món chính ra khỏi danh sách chọn.
-       * Ví dụ: "bịch bún thêm", "thịt thêm", "nước chấm", "trân châu thêm"...
-       * → Các món này KHÔNG nên xuất hiện trong lịch trình bữa ăn chính.
+       * Bộ lọc: Loại bỏ các món KHÔNG PHẢI MÓN ĂN CHÍNH
+       * Bao gồm: topping, đồ uống, gia vị, đóng gói
+       * LLM đã lọc qua recommendedDish, nhưng fallback strategy vẫn cần filter này
        */
-      const TOPPING_KEYWORDS = [
-        'thêm', 'extra', 'topping', 'thêm phần', 'phần thêm',
+      const NOT_MAIN_DISH_KEYWORDS = [
+        // Topping / Phần thêm
+        'thêm', 'extra', 'topping', 'phần thêm', 'thêm phần',
+        // Nước chấm / Gia vị
         'nước chấm', 'nước tương', 'nước mắm', 'tương ớt',
-        'đá', 'đá thêm', 'bịch', 'gói', 'hộp',
+        'gia vị', 'muối', 'tiêu', 'ớt', 'sa tế',
+        // Đóng gói / Dụng cụ
+        'bịch', 'gói', 'hộp', 'túi', 'ly', 'khăn lạnh',
         'upsize', 'size', 'nâng cấp',
-        'gia vị', 'muối', 'tiêu', 'ớt',
-        'khăn lạnh', 'túi', 'ly',
+        // ĐỒ UỐNG
+        'coca', 'pepsi', 'sprite', '7up', 'fanta', 'mirinda',
+        'nước ngọt', 'nước suối', 'nước khoáng', 'nước lọc',
+        'trà đá', 'trà nóng', 'trà xanh', 'trà sữa', 'trà vải', 'trà đào',
+        'trà chanh', 'trà gừng', 'trà ô long', 'trà sen',
+        'cà phê', 'cafe', 'coffee', 'capuchino', 'latte', 'espresso',
+        'sinh tố', 'nước ép', 'smoothie', 'juice',
+        'sữa đậu', 'sữa tươi', 'sữa chua', 'yaourt',
+        'bia', 'beer', 'rượu', 'wine', 'vodka', 'cocktail',
+        'nước dừa', 'dừa tươi',
+        // Tráng miệng nhỏ
+        'kẹo', 'đá xay', 'đá bào', 'kem', 'flan',
       ];
 
-      /** Kiểm tra xem 1 món có phải topping/phần thêm hay không */
-      const isTopping = (dishName: string): boolean => {
+      /** Kiểm tra xem 1 món có phải MÓN ĂN CHÍNH hay không */
+      const isNotMainDish = (dishName: string): boolean => {
         const name = dishName.toLowerCase().trim();
-        // Kiểm tra từ khóa
-        if (TOPPING_KEYWORDS.some(kw => name.includes(kw))) return true;
-        // Kiểm tra giá quá rẻ (dưới 5.000đ) → chắc chắn là topping
-        return false;
+        return NOT_MAIN_DISH_KEYWORDS.some(kw => name.includes(kw));
       };
 
       for (const meal of meals) {
-        const targetBudget = mealBudgetConfig[meal]; // ngân sách mỗi bữa ăn
+        const targetBudget = mealBudgetConfig[meal];
 
-        // Sắp xếp nhà hàng theo điểm số AI đã chấm cho bữa ăn cụ thể này
         const sortedRestaurants = [...scoredRestaurants].sort((a, b) => {
           const scoreA =
             typeof a.scores?.[meal] === 'object'
@@ -141,88 +150,109 @@ export class ScoringHelper {
         let selectedRestaurant: any = null;
 
         /**
-         * CHIẾN THUẬT CHỌN MÓN (Strategy Levels):
-         * Duyệt từ điều kiện lý tưởng (Cấp 1) đến nới lỏng dần (Cấp 5) để đảm bảo luôn chọn được món.
+         * ƯU TIÊN 1: Dùng recommendedDish từ LLM
+         * Matching LINH HOẠT: dùng includes() thay vì so sánh chính xác
+         * Vì LLM có thể trả "Coca Cola" nhưng menu ghi "Nước ngọt Coca-Pepsi"
          */
-        const strategyLevels = [
-          // Cấp 1: Hoàn hảo - Chưa ăn loại này bao giờ, chưa ăn quán này, giá chuẩn (+/- 20%)
-          (d: any, res: any) => {
-            const cat = d.category?.toLowerCase().trim();
-            return (
-              cat &&
-              !usedCategories.has(cat) && // món này chưa từng ăn trong cả hành trình
-              !usedRestaurantsInDay.has(res.id) && // quán này chưa từng ăn trong ngày hôm nay
-              d.price >= targetBudget * 0.8 &&
-              d.price <= targetBudget * 1.2
-            ); // ngân sách nằm trong khoảng +- 20%
-          },
+        for (const restaurant of sortedRestaurants) {
+          const mealScore = restaurant.scores?.[meal];
+          const recommended = typeof mealScore === 'object' ? mealScore.recommendedDish : null;
+          const currentScore = typeof mealScore === 'object' ? mealScore.score : (mealScore ?? 0);
 
-          // Cấp 2: Nới lỏng ngân sách - 60% đến 140% ngân sách mục tiêu
-          (d: any, res: any) => {
-            const cat = d.category?.toLowerCase().trim();
-            return (
-              cat &&
-              !usedCategories.has(cat) && // món này chưa từng ăn trong cả hành trình
-              d.price >= targetBudget * 0.6 &&
-              d.price <= targetBudget * 1.4
-            );
-          },
+          if (currentScore < 20) continue;
+          if (usedRestaurantsInDay.has(restaurant.id)) continue;
 
-          // Cấp 3: Ưu tiên sự đa dạng - Chỉ cần chưa ăn loại món này trong cả hành trình
-          (d: any, _res: any) => {
-            const cat = d.category?.toLowerCase().trim();
-            return cat && !usedCategories.has(cat);
-          },
-
-          // Cấp 4: Chấp nhận trùng loại món với ngày khác nhưng không trùng trong ngày hôm nay
-          (d: any, res: any) => {
-            const cat = d.category?.toLowerCase().trim();
-            return (
-              cat &&
-              !usedCategoriesInDay.has(cat) &&
-              !usedRestaurantsInDay.has(res.id) &&
-              dayMealsResult['breakfast']?.dish !== d.name &&
-              dayMealsResult['lunch']?.dish !== d.name
-            );
-          },
-
-          // Cấp 5: Cấp độ cuối cùng - Chỉ cần món này chưa được chọn cho bữa trước đó cùng ngày
-          (d: any, _res: any) => {
-            const previousDishes = Object.values(dayMealsResult).map(
-              (m: any) => m.dish,
-            );
-            return !previousDishes.includes(d.name);
-          },
-        ];
-
-        // Duyệt qua từng level và tiến hành chọn quán - chọn món
-        for (
-          let levelIndex = 0;
-          levelIndex < strategyLevels.length;
-          levelIndex++
-        ) {
-          const checkStrategy = strategyLevels[levelIndex];
-          const isFinalLevel = levelIndex === strategyLevels.length - 1;
-
-          for (const restaurant of sortedRestaurants) {
-            const currentScore =
-              typeof restaurant.scores?.[meal] === 'object'
-                ? restaurant.scores[meal].score
-                : (restaurant.scores?.[meal] ?? -999);
-            // Bỏ qua các quán bị AI loại trừ (điểm âm do dị ứng/đóng cửa) trừ khi ở bước cuối cùng
-            if (!isFinalLevel && currentScore < 0) continue;
-
-            const dish = restaurant.menu?.find((d: any) =>
-              !isTopping(d.name) && checkStrategy(d, restaurant),
-            );
-
+          if (recommended && !isNotMainDish(recommended)) {
+            const recLower = recommended.toLowerCase().trim();
+            // Tìm: exact match HOẶC tên menu chứa tên đề xuất HOẶC ngược lại
+            const dish = restaurant.menu?.find((d: any) => {
+              const dName = d.name?.toLowerCase().trim() || '';
+              return (
+                !isNotMainDish(d.name) &&
+                (dName === recLower || dName.includes(recLower) || recLower.includes(dName))
+              );
+            });
             if (dish) {
               selectedDish = dish;
               selectedRestaurant = restaurant;
               break;
             }
           }
-          if (selectedDish) break;
+        }
+
+        /**
+         * ƯU TIÊN 2 (FALLBACK): Strategy Levels truyền thống
+         * Chỉ chạy khi LLM không đề xuất được món hoặc món đề xuất không tìm thấy.
+         */
+        if (!selectedDish) {
+          const strategyLevels = [
+            // Cấp 1: Hoàn hảo - Chưa ăn loại này, chưa ăn quán này, giá chuẩn (+/- 20%)
+            (d: any, res: any) => {
+              const cat = d.category?.toLowerCase().trim();
+              return (
+                cat &&
+                !usedCategories.has(cat) &&
+                !usedRestaurantsInDay.has(res.id) &&
+                d.price >= targetBudget * 0.8 &&
+                d.price <= targetBudget * 1.2
+              );
+            },
+            // Cấp 2: Nới lỏng ngân sách - 60% đến 140%
+            (d: any, res: any) => {
+              const cat = d.category?.toLowerCase().trim();
+              return (
+                cat &&
+                !usedCategories.has(cat) &&
+                d.price >= targetBudget * 0.6 &&
+                d.price <= targetBudget * 1.4
+              );
+            },
+            // Cấp 3: Chỉ cần chưa ăn loại món này
+            (d: any, _res: any) => {
+              const cat = d.category?.toLowerCase().trim();
+              return cat && !usedCategories.has(cat);
+            },
+            // Cấp 4: Không trùng trong ngày hôm nay
+            (d: any, res: any) => {
+              const cat = d.category?.toLowerCase().trim();
+              return (
+                cat &&
+                !usedCategoriesInDay.has(cat) &&
+                !usedRestaurantsInDay.has(res.id) &&
+                dayMealsResult['breakfast']?.dish !== d.name &&
+                dayMealsResult['lunch']?.dish !== d.name
+              );
+            },
+            // Cấp 5: Chỉ cần món chưa được chọn trước đó
+            (d: any, _res: any) => {
+              const previousDishes = Object.values(dayMealsResult).map((m: any) => m.dish);
+              return !previousDishes.includes(d.name);
+            },
+          ];
+
+          for (let levelIndex = 0; levelIndex < strategyLevels.length; levelIndex++) {
+            const checkStrategy = strategyLevels[levelIndex];
+            const isFinalLevel = levelIndex === strategyLevels.length - 1;
+
+            for (const restaurant of sortedRestaurants) {
+              const currentScore =
+                typeof restaurant.scores?.[meal] === 'object'
+                  ? restaurant.scores[meal].score
+                  : (restaurant.scores?.[meal] ?? -999);
+              if (!isFinalLevel && currentScore < 0) continue;
+
+              const dish = restaurant.menu?.find((d: any) =>
+                !isNotMainDish(d.name) && checkStrategy(d, restaurant),
+              );
+
+              if (dish) {
+                selectedDish = dish;
+                selectedRestaurant = restaurant;
+                break;
+              }
+            }
+            if (selectedDish) break;
+          }
         }
 
         // BƯỚC DỰ PHÒNG CUỐI CÙNG: Nếu tất cả strategy đều thất bại
@@ -236,11 +266,11 @@ export class ScoringHelper {
               (m: any) => m.dish,
             );
             let validDishes = randomFallbackRestaurant.menu.filter(
-              (d: any) => !isTopping(d.name) && !previousDishes.includes(d.name),
+              (d: any) => !isNotMainDish(d.name) && !previousDishes.includes(d.name),
             );
             if (validDishes.length === 0) {
               validDishes = randomFallbackRestaurant.menu.filter(
-                (d: any) => !isTopping(d.name),
+                (d: any) => !isNotMainDish(d.name),
               );
             }
             if (validDishes.length === 0) validDishes = randomFallbackRestaurant.menu;
@@ -443,30 +473,72 @@ export class ScoringHelper {
         (_d: any, _res: any) => true,
       ];
 
-      // Bộ lọc TOPPING — dùng chung logic với generateFinalPlan
-      const TOPPING_KEYWORDS = [
-        'thêm', 'extra', 'topping', 'thêm phần', 'phần thêm',
+      // Bộ lọc MÓN KHÔNG PHẢI MÓN CHÍNH — dùng chung logic với generateFinalPlan
+      const NOT_MAIN_DISH_KEYWORDS = [
+        'thêm', 'extra', 'topping', 'phần thêm', 'thêm phần',
         'nước chấm', 'nước tương', 'nước mắm', 'tương ớt',
-        'đá', 'đá thêm', 'bịch', 'gói', 'hộp',
+        'gia vị', 'muối', 'tiêu', 'ớt', 'sa tế',
+        'bịch', 'gói', 'hộp', 'túi', 'ly', 'khăn lạnh',
         'upsize', 'size', 'nâng cấp',
-        'gia vị', 'muối', 'tiêu', 'ớt',
-        'khăn lạnh', 'túi', 'ly',
+        'coca', 'pepsi', 'sprite', '7up', 'fanta', 'mirinda',
+        'nước ngọt', 'nước suối', 'nước khoáng', 'nước lọc',
+        'trà đá', 'trà nóng', 'trà xanh', 'trà sữa', 'trà vải', 'trà đào',
+        'trà chanh', 'trà gừng', 'trà ô long', 'trà sen',
+        'cà phê', 'cafe', 'coffee', 'capuchino', 'latte', 'espresso',
+        'sinh tố', 'nước ép', 'smoothie', 'juice',
+        'sữa đậu', 'sữa tươi', 'sữa chua', 'yaourt',
+        'bia', 'beer', 'rượu', 'wine', 'vodka', 'cocktail',
+        'nước dừa', 'dừa tươi',
+        'kẹo', 'đá xay', 'đá bào', 'kem', 'flan',
       ];
-      const isTopping = (name: string): boolean =>
-        TOPPING_KEYWORDS.some(kw => name.toLowerCase().trim().includes(kw));
+      const isNotMainDish = (name: string): boolean =>
+        NOT_MAIN_DISH_KEYWORDS.some(kw => name.toLowerCase().trim().includes(kw));
 
-      for (const checkStrategy of strategyLevels) {
-        for (const restaurant of sortedRestaurants) {
-          const dish = restaurant.menu?.find((d: any) =>
-            !isTopping(d.name) && checkStrategy(d, restaurant),
-          );
+      /**
+       * ƯU TIÊN 1: Dùng recommendedDish từ LLM (matching linh hoạt)
+       */
+      for (const restaurant of sortedRestaurants) {
+        const mealScore = restaurant.scores?.[meal];
+        const recommended = typeof mealScore === 'object' ? mealScore.recommendedDish : null;
+        const currentScore = typeof mealScore === 'object' ? mealScore.score : (mealScore ?? 0);
+
+        if (currentScore < 20) continue;
+        if (usedRestaurantsInDay.has(restaurant.id)) continue;
+
+        if (recommended && !isNotMainDish(recommended)) {
+          const recLower = recommended.toLowerCase().trim();
+          const dish = restaurant.menu?.find((d: any) => {
+            const dName = d.name?.toLowerCase().trim() || '';
+            return (
+              !isNotMainDish(d.name) &&
+              (dName === recLower || dName.includes(recLower) || recLower.includes(dName))
+            );
+          });
           if (dish) {
             selectedDish = dish;
             selectedRestaurant = restaurant;
             break;
           }
         }
-        if (selectedDish) break;
+      }
+
+      /**
+       * ƯU TIÊN 2 (FALLBACK): Strategy Levels truyền thống
+       */
+      if (!selectedDish) {
+        for (const checkStrategy of strategyLevels) {
+          for (const restaurant of sortedRestaurants) {
+            const dish = restaurant.menu?.find((d: any) =>
+              !isNotMainDish(d.name) && checkStrategy(d, restaurant),
+            );
+            if (dish) {
+              selectedDish = dish;
+              selectedRestaurant = restaurant;
+              break;
+            }
+          }
+          if (selectedDish) break;
+        }
       }
 
       if (selectedRestaurant && selectedDish) {
