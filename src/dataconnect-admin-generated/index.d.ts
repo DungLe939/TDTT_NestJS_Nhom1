@@ -169,6 +169,9 @@ export interface ListFoodsByCategoryData {
       id: UUIDString;
       name: string;
       rating?: number | null;
+      coverImage?: string | null;
+      openTime?: string | null;
+      closeTime?: string | null;
     } & Shop_Key;
       category: {
         id: UUIDString;
@@ -203,6 +206,9 @@ export interface ListFoodsData {
       address: string;
       lat?: number | null;
       lng?: number | null;
+      coverImage?: string | null;
+      openTime?: string | null;
+      closeTime?: string | null;
     } & Shop_Key;
       category: {
         id: UUIDString;
@@ -243,6 +249,21 @@ export interface Shop_Key {
   __typename?: 'Shop_Key';
 }
 
+/** Generated Node Admin SDK operation action function for the 'CreateCategory' Mutation. Allow users to execute without passing in DataConnect. */
+export function createCategory(dc: DataConnect, vars: CreateCategoryVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateCategoryData>>;
+/** Generated Node Admin SDK operation action function for the 'CreateCategory' Mutation. Allow users to pass in custom DataConnect instances. */
+export function createCategory(vars: CreateCategoryVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateCategoryData>>;
+
+/** Generated Node Admin SDK operation action function for the 'CreateShop' Mutation. Allow users to execute without passing in DataConnect. */
+export function createShop(dc: DataConnect, vars: CreateShopVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateShopData>>;
+/** Generated Node Admin SDK operation action function for the 'CreateShop' Mutation. Allow users to pass in custom DataConnect instances. */
+export function createShop(vars: CreateShopVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateShopData>>;
+
+/** Generated Node Admin SDK operation action function for the 'CreateFoodItem' Mutation. Allow users to execute without passing in DataConnect. */
+export function createFoodItem(dc: DataConnect, vars: CreateFoodItemVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateFoodItemData>>;
+/** Generated Node Admin SDK operation action function for the 'CreateFoodItem' Mutation. Allow users to pass in custom DataConnect instances. */
+export function createFoodItem(vars: CreateFoodItemVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateFoodItemData>>;
+
 /** Generated Node Admin SDK operation action function for the 'ListCategories' Query. Allow users to execute without passing in DataConnect. */
 export function listCategories(dc: DataConnect, options?: OperationOptions): Promise<ExecuteOperationResponse<ListCategoriesData>>;
 /** Generated Node Admin SDK operation action function for the 'ListCategories' Query. Allow users to pass in custom DataConnect instances. */
@@ -272,19 +293,4 @@ export function getShopDetail(vars: GetShopDetailVariables, options?: OperationO
 export function listShops(dc: DataConnect, vars?: ListShopsVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<ListShopsData>>;
 /** Generated Node Admin SDK operation action function for the 'ListShops' Query. Allow users to pass in custom DataConnect instances. */
 export function listShops(vars?: ListShopsVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<ListShopsData>>;
-
-/** Generated Node Admin SDK operation action function for the 'CreateCategory' Mutation. Allow users to execute without passing in DataConnect. */
-export function createCategory(dc: DataConnect, vars: CreateCategoryVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateCategoryData>>;
-/** Generated Node Admin SDK operation action function for the 'CreateCategory' Mutation. Allow users to pass in custom DataConnect instances. */
-export function createCategory(vars: CreateCategoryVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateCategoryData>>;
-
-/** Generated Node Admin SDK operation action function for the 'CreateShop' Mutation. Allow users to execute without passing in DataConnect. */
-export function createShop(dc: DataConnect, vars: CreateShopVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateShopData>>;
-/** Generated Node Admin SDK operation action function for the 'CreateShop' Mutation. Allow users to pass in custom DataConnect instances. */
-export function createShop(vars: CreateShopVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateShopData>>;
-
-/** Generated Node Admin SDK operation action function for the 'CreateFoodItem' Mutation. Allow users to execute without passing in DataConnect. */
-export function createFoodItem(dc: DataConnect, vars: CreateFoodItemVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateFoodItemData>>;
-/** Generated Node Admin SDK operation action function for the 'CreateFoodItem' Mutation. Allow users to pass in custom DataConnect instances. */
-export function createFoodItem(vars: CreateFoodItemVariables, options?: OperationOptions): Promise<ExecuteOperationResponse<CreateFoodItemData>>;
 
