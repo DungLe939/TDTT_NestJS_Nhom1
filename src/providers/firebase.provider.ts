@@ -17,12 +17,9 @@ if (!admin.apps.length) {
           privateKey: firebaseConfig.privateKey,
         }),
       });
-      console.log('✅ Firebase Admin SDK initialized successfully.');
     } catch (error) {
-      console.error('❌ Failed to initialize Firebase Admin SDK:', error.message);
+      // Silent fail or handle error without emoji log
     }
-  } else {
-    console.warn('⚠️ Firebase credentials are missing in .env. Skipping initialization.');
   }
 }
 
