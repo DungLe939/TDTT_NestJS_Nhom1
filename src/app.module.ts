@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config'; // Thư viện hỗ trợ đọc 
 import { TranslationModule } from './modules/translation/translation.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import { MenuScanModule } from './modules/menu-scan/menu-scan.module';
+import { RestaurantsModule } from './modules/restaurants/restaurants.module';
 import * as path from 'path';
 
 /**
@@ -40,6 +41,11 @@ import * as path from 'path';
      * MenuScanModule: Module xử lý upload ảnh menu và trích xuất chữ bằng AI (Qwen2-VL).
      */
     MenuScanModule,
+
+    /**
+     * RestaurantsModule: Module xử lý gợi ý nhà hàng theo khẩu vị nhóm.
+     */
+    RestaurantsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

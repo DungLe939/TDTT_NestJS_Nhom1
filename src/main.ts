@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
 
 /**
@@ -21,15 +21,24 @@ async function bootstrap() {
   // Dòng code này chính là để cấp quyền "cho phép React đi qua cửa".
   // Đừng bao giờ xóa dòng này nếu bạn muốn test API trên internet nhé!
   // ----------------------------------------------------------------------
+  const ALLOWED_ORIGINS = [
+    'http://localhost:5173',  // Vite dev server (mặc định)
+    'http://localhost:5174',  // Vite dev server (port thay thế)
+    'http://localhost:3001',  // CRA dev server (nếu dùng)
+    'http://127.0.0.1:5173',
+    // Khi dùng Pinggy: thêm link FE Pinggy vào đây
+    // 'https://your-frontend.a.pinggy.link',
+  ];
+
   app.enableCors({
     origin: (origin, callback) => {
       // Cho phép tất cả các origin trong môi trường development, 
       // nhưng trả về chính origin đó thay vì '*' để thỏa mãn credentials: true
       callback(null, true);
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Pinggy-No-Screen', 'x-pinggy-no-screen', 'Accept', 'Origin'],
-    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Pinggy-No-Screen', 'x-pinggy-no-screen', 'Accept', 'Origin', 'Cookie'],
+    credentials: true,  // Cho phép gửi/nhận Cookie (guest_id session)
   });
 
   // Sử dụng middleware để parse Cookie từ request

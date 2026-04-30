@@ -13,7 +13,7 @@ export class SchedulerService {
     private readonly rawFilterHelper: RawFilterHelper,
     private readonly clusteringHelper: ClusteringHelper,
     private readonly scoringHelper: ScoringHelper,
-  ) {}
+  ) { }
 
   // Hàm lấy tọa độ từ Keyword
   private async getCoordsFromKeyword(keyword: string) {
@@ -165,7 +165,7 @@ export class SchedulerService {
             rating: originalData.rating || 4.0,
             openingHours:
               originalData.openingHours &&
-              typeof originalData.openingHours === 'object'
+                typeof originalData.openingHours === 'object'
                 ? `${originalData.openingHours.open}-${originalData.openingHours.close}`
                 : originalData.openingHours || '07:00-22:00',
             menu: originalData.menu,

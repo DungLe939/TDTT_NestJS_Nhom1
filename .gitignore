@@ -44,3 +44,6 @@ lerna-debug.log*
 
 # Linters
 .eslintcache
+
+# Python virtual environment
+venv/
