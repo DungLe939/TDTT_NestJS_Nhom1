@@ -34,11 +34,8 @@ function generateSlug(name: string): string {
 }
 
 async function seedData() {
-  console.log('🚀 Bắt đầu seed dữ liệu trực tiếp vào Firebase Data Connect Emulator qua HTTP...');
-
   const dataPath = path.join(__dirname, '../data/shopeefood_geocoded.json');
   if (!fs.existsSync(dataPath)) {
-    console.error('❌ Không tìm thấy file dữ liệu:', dataPath);
     return;
   }
 
@@ -46,11 +43,9 @@ async function seedData() {
   const parsedData = JSON.parse(rawData);
   const shops = parsedData.shops;
 
-  console.log(`📦 Tìm thấy ${shops.length} quán ăn.`);
-
   // 1. Tạo danh sách Categories
-  const categoryMap = new Map<string, string>(); 
-  console.log('⏳ Đang phân tích danh mục món ăn...');
+  const categoryMap = new Map<string, string>();
+
 
   for (const shop of shops) {
     if (!shop.menu) continue;
@@ -63,20 +58,20 @@ async function seedData() {
     }
   }
 
-  console.log(`📌 Tìm thấy ${categoryMap.size} danh mục (Categories). Đang tạo...`);
+
   for (const [name, _] of categoryMap) {
     const slug = generateSlug(name);
     try {
       const res = await executeMutation('CreateCategory', { name, slug });
       categoryMap.set(name, res.data.category_insert.id);
-      console.log(`✅ Đã tạo Category: ${name} (${res.data.category_insert.id})`);
+
     } catch (e: any) {
-      console.error(`⚠️ Lỗi khi tạo Category ${name}:`, e.message || e);
+
     }
   }
 
   // 2. Chèn dữ liệu Shop và FoodItems
-  console.log('⏳ Đang chèn dữ liệu Quán ăn và Món ăn...');
+
   for (const shop of shops) {
     try {
       const openTime = shop.opening_hours?.open || '07:00';
@@ -103,7 +98,7 @@ async function seedData() {
       });
 
       const shopId = shopRes.data.shop_insert.id;
-      console.log(`🏪 Đã tạo Shop: ${shop.name} (${shopId})`);
+
 
       if (shop.menu && shop.menu.length > 0) {
         let foodCount = 0;
@@ -132,17 +127,17 @@ async function seedData() {
             });
             foodCount++;
           } catch (e: any) {
-             console.error(`  ❌ Lỗi khi chèn món ${food.name}:`, e.message || e);
+
           }
         }
-        console.log(`  🍔 Đã chèn ${foodCount} món ăn.`);
+
       }
     } catch (e: any) {
-       console.error(`❌ Lỗi khi chèn quán ${shop.name}:`, e.message || e);
+
     }
   }
 
-  console.log('🎉 Seed dữ liệu thành công!');
+
 }
 
-seedData().catch(console.error);
+seedData().catch(() => {});

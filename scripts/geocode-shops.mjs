@@ -39,16 +39,16 @@ async function geocodeAddress(address) {
     }
     return null;
   } catch (error) {
-    console.error(`  ❌ Lỗi geocode "${address}":`, error.message);
+
     return null;
   }
 }
 
 async function main() {
-  console.log('📖 Đang đọc file ShopeeFood...');
+
   const rawData = JSON.parse(readFileSync(INPUT_FILE, 'utf-8'));
   const shops = rawData.shops;
-  console.log(`📊 Tổng cộng ${shops.length} shops cần geocode.\n`);
+
 
   const geocodedShops = [];
   let successCount = 0;
@@ -56,14 +56,13 @@ async function main() {
 
   for (let i = 0; i < shops.length; i++) {
     const shop = shops[i];
-    console.log(`[${i + 1}/${shops.length}] 🔍 Geocoding: ${shop.name}`);
-    console.log(`   📍 Địa chỉ: ${shop.address}`);
+
 
     const coords = await geocodeAddress(shop.address);
 
     if (coords) {
       successCount++;
-      console.log(`   ✅ Tọa độ: ${coords.lat}, ${coords.lng}`);
+
 
       geocodedShops.push({
         ...shop,
@@ -75,7 +74,7 @@ async function main() {
       });
     } else {
       failCount++;
-      console.log(`   ⚠️  Không tìm được tọa độ, sử dụng tọa độ mặc định (trung tâm HCM)`);
+
 
       // Fallback: dùng tọa độ trung tâm TP.HCM + random offset nhỏ
       const defaultLat = 10.7769 + (Math.random() - 0.5) * 0.05;
@@ -114,13 +113,7 @@ async function main() {
 
   writeFileSync(OUTPUT_FILE, JSON.stringify(output, null, 2), 'utf-8');
 
-  console.log('\n' + '═'.repeat(50));
-  console.log('📊 KẾT QUẢ GEOCODE');
-  console.log('═'.repeat(50));
-  console.log(`   ✅ Thành công: ${successCount}/${shops.length}`);
-  console.log(`   ⚠️  Dùng mặc định: ${failCount}/${shops.length}`);
-  console.log(`   📁 File output: ${OUTPUT_FILE}`);
-  console.log('═'.repeat(50));
+
 }
 
-main().catch(console.error);
+main().catch(() => {});

@@ -3,8 +3,6 @@ import { Injectable } from '@nestjs/common';
 /**
  * PlanCacheHelper: Bộ nhớ đệm lưu dữ liệu lịch trình trong RAM của server.
  *
- * === PHIÊN BẢN MỚI: IN-MEMORY CACHE ===
- * - Không còn phụ thuộc vào Firebase Data Connect Emulator (port 9399).
  * - Lưu trực tiếp vào Map trong RAM → cực nhanh, không cần kết nối ngoài.
  * - TTL: 20 phút (tự xóa sau khi quá hạn).
  * - Phù hợp cho demo và development: mỗi lần restart server cache sẽ reset,
@@ -49,7 +47,7 @@ export class PlanCacheHelper {
                 updatedAt: Date.now(),
             });
         } catch (error) {
-            console.error('[PlanCache] Lỗi lưu cache:', error.message || error);
+
         }
     }
 
@@ -61,19 +59,19 @@ export class PlanCacheHelper {
         try {
             const entry = this.memCache.get(guestId);
             if (!entry) {
-                console.warn(`[PlanCache] ⚠️ Không tìm thấy cache cho guest: ${guestId}`);
+
                 return null;
             }
 
             if (this.isExpired(entry)) {
-                console.warn(`[PlanCache] ⏰ Cache đã hết hạn cho guest: ${guestId}, xóa và trả về null`);
+
                 this.memCache.delete(guestId);
                 return null;
             }
 
             return entry;
         } catch (error) {
-            console.error('[PlanCache] Lỗi đọc cache:', error.message || error);
+
             return null;
         }
     }
@@ -89,10 +87,10 @@ export class PlanCacheHelper {
                 entry.dayScores[dayIndex] = scoredRestaurants;
                 entry.updatedAt = Date.now();
             } else {
-                console.warn(`[PlanCache] ⚠️ saveDayScores: Không tìm thấy cache cho guest: ${guestId}`);
+
             }
         } catch (error) {
-            console.error('[PlanCache] Lỗi cập nhật DayScores:', error.message || error);
+
         }
     }
 
@@ -104,13 +102,13 @@ export class PlanCacheHelper {
         try {
             const entry = this.memCache.get(guestId);
             if (!entry || this.isExpired(entry)) {
-                console.warn(`[PlanCache] ⚠️ getDayScores: Không tìm thấy cache hoặc hết hạn cho guest: ${guestId}`);
+
                 return null;
             }
             const result = entry.dayScores?.[dayIndex] ?? null;
             return result;
         } catch (error) {
-            console.error('[PlanCache] Lỗi lấy DayScores:', error.message || error);
+
             return null;
         }
     }
@@ -127,7 +125,7 @@ export class PlanCacheHelper {
                 entry.updatedAt = Date.now();
             }
         } catch (error) {
-            console.error('[PlanCache] Lỗi cập nhật UsedCategories:', error.message || error);
+
         }
     }
 

@@ -15,7 +15,7 @@ import { RouteRequestDto } from './dto/route-request.dto';
 //định nghĩa prefix cho route /schedule
 @Controller('schedule')
 export class SchedulerController {
-  constructor(private readonly schedulerService: SchedulerService) {}
+  constructor(private readonly schedulerService: SchedulerService) { }
 
   // endpoint: /schedule/searchLocation
   // Lấy tọa độ dựa vào keyword(tên địa điểm du lịch) do user nhập vào
@@ -58,7 +58,7 @@ export class SchedulerController {
   async autocompleteLocation(@Body() searchDto: SearchLocationDto) {
     try {
       if (!searchDto.keyword || searchDto.keyword.length < 2) {
-          return { success: true, data: [] };
+        return { success: true, data: [] };
       }
       const data = await this.schedulerService.getLocationSuggestions(searchDto.keyword);
       return { success: true, data };
@@ -67,13 +67,9 @@ export class SchedulerController {
     }
   }
 
-  // ============================================
-  // STREAMING MODE: Endpoints tối ưu hiệu suất
-  // ============================================
-
   // endpoint: /schedule/preparePlan
   // CHẠY NGẦM: Lọc thô + Phân cụm quán ăn (Clustering)
-  // [NEW OPTIMIZATION]: Tách logic chuẩn bị dữ liệu ra khỏi việc gọi AI.
+  // [OPTIMIZATION]: Tách logic chuẩn bị dữ liệu ra khỏi việc gọi AI.
   // 1. Lọc các quán phù hợp ngân sách, khoảng cách.
   // 2. Chia các quán vào các "cụm" (clusters) theo từng ngày dựa trên vị trí địa lý.
   // 3. Lưu vào In-Memory Cache (RAM) để tái sử dụng.
@@ -84,14 +80,14 @@ export class SchedulerController {
       const result = await this.schedulerService.preparePlanData(body, guestId);
       return result;
     } catch (error) {
-      console.error('[PreparePlan Error]:', error);
+
       throw new InternalServerErrorException(error.message);
     }
   }
 
   // endpoint: /schedule/generateDayPlan
   // STREAMING: Tạo lịch trình cho một ngày cụ thể (Dùng Gemini)
-  // [NEW OPTIMIZATION]:
+  // [OPTIMIZATION]:
   // 1. Đọc dữ liệu cụm (cluster) của ngày hiện tại từ Cache.
   // 2. Gọi Gemini AI với prompt RÚT GỌN (chỉ yêu cầu chấm điểm 3 bữa, KHÔNG sinh metadata).
   // 3. Merge điểm của AI với dữ liệu gốc (ShopeeFood) để tạo lịch trình hoàn chỉnh.
@@ -104,7 +100,7 @@ export class SchedulerController {
       const result = await this.schedulerService.createSingleDayPlan(guestId, body.dayIndex);
       return { success: true, ...result };
     } catch (error) {
-      console.error('[GenerateDayPlan Error]:', error);
+
       throw new InternalServerErrorException(error.message);
     }
   }
@@ -116,35 +112,19 @@ export class SchedulerController {
     try {
       const guestId = (req as any).guest_id;
       const { dayIndex, mealType, userLat, userLng } = body;
-      
+
       const result = await this.schedulerService.getSwapOptions(
-        guestId, 
-        dayIndex, 
-        mealType, 
-        userLat, 
+        guestId,
+        dayIndex,
+        mealType,
+        userLat,
         userLng
       );
       return result;
     } catch (error) {
-        console.error('[SwapOptions Error]:', error);
-        throw new InternalServerErrorException(error.message);
+
+      throw new InternalServerErrorException(error.message);
     }
-  }
-
-  // endpoint: /schedule/generatePlan
-  // Tạo ra lộ trình các món ăn phù hợp
-  @Post('generatePlan')
-  async generatePlan(@Body() body: any, @Req() req: Request) {
-    //Được lấy từ middleware
-    const guestId = (req as any).guest_id;
-
-    //Trả về lộ trình 3 bữa chính/ngày + danh sách các quán ăn có món ăn vặt tìm năng
-    const result = await this.schedulerService.createTravelPlan(body, guestId);
-
-    return {
-      success: true,
-      ...result,
-    };
   }
 
   // endpoint: /schedule/allDishes
@@ -160,7 +140,7 @@ export class SchedulerController {
       const dishes = await this.schedulerService.getAllDishes(guestId);
       return { success: true, data: dishes };
     } catch (error) {
-      console.error('[AllDishes Error]:', error);
+
       throw new InternalServerErrorException(error.message);
     }
   }

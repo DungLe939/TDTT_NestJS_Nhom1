@@ -126,7 +126,7 @@ export class GeminiScoringHelper {
     });
 
     const elapsed = Date.now() - startTime;
-    console.log(`✅ [AI Scoring] Hoàn tất ${merged.length} quán trong ${elapsed}ms`);
+
     return merged;
   }
 
@@ -248,11 +248,11 @@ ${JSON.stringify(minifiedData)}`;
           ? await this.callGroq(prompt)
           : await this.callGemini(prompt);
 
-        console.log(`  ✅ Chunk ${chunkIndex + 1}: OK [${providerName}] lần ${attempt} (${parsed.length} quán)`);
+
         return parsed;
       } catch (error: any) {
         const msg = (error.message || String(error)).substring(0, 120);
-        console.error(`  ❌ Chunk ${chunkIndex + 1}: Lỗi ${attempt}/${MAX_RETRIES} [${providerName}] - ${msg}`);
+
 
         if (attempt < MAX_RETRIES) {
           // Delay ngắn: 500ms → 1s → 1.5s (Groq rất nhanh nên không cần đợi lâu)
@@ -261,7 +261,7 @@ ${JSON.stringify(minifiedData)}`;
       }
     }
 
-    console.warn(`  ⚠️ Chunk ${chunkIndex + 1}: Hết ${MAX_RETRIES} lần retry (Groq+Gemini), dùng fallback`);
+
     return [];
   }
 }

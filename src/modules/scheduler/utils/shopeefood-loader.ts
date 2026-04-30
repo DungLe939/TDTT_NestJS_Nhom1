@@ -104,7 +104,7 @@ export class ShopeeFoodLoader implements OnModuleInit {
       const shops = res.data.shops;
 
       if (!shops || shops.length === 0) {
-        console.warn('⚠️ [ShopeeFoodLoader] Không có quán ăn nào trong Database! Dữ liệu trống.');
+
         return;
       }
 
@@ -112,12 +112,9 @@ export class ShopeeFoodLoader implements OnModuleInit {
       this.restaurants = shops.map((shop: any) => this.transformDbShop(shop));
       this.isLoaded = true;
     } catch (error: any) {
-      console.error(
-        '❌ [ShopeeFoodLoader] Lỗi khi load dữ liệu từ Database:',
-        error.message,
-      );
 
-      console.warn('⚠️ [ShopeeFoodLoader] Fallback: Đang tải dữ liệu từ file JSON cục bộ...');
+
+
       try {
         const filePath = require('path').join(process.cwd(), 'data', 'shopeefood_geocoded.json');
         if (require('fs').existsSync(filePath)) {
@@ -125,10 +122,10 @@ export class ShopeeFoodLoader implements OnModuleInit {
           const fallbackShops = rawData.shops;
           this.restaurants = fallbackShops.map((s: any) => this.transformJsonShop(s));
           this.isLoaded = true;
-          console.log(`✅ [ShopeeFoodLoader] Đã load fallback ${this.restaurants.length} quán ăn từ JSON.`);
+
         }
       } catch (fallbackError: any) {
-        console.error('❌ [ShopeeFoodLoader] Fallback thất bại:', fallbackError.message);
+
       }
     }
   }
@@ -236,9 +233,7 @@ export class ShopeeFoodLoader implements OnModuleInit {
    */
   getAllRestaurants(): TransformedRestaurant[] {
     if (!this.isLoaded) {
-      console.warn(
-        '⚠️ [ShopeeFoodLoader] Dữ liệu chưa được load, đang thử load lại...',
-      );
+
       this.loadData();
     }
     return this.restaurants;

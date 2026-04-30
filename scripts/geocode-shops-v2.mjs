@@ -154,23 +154,20 @@ async function geocodeWithRetry(address) {
 }
 
 async function main() {
-  console.log('📖 Đang đọc file ShopeeFood...');
+
   const rawData = JSON.parse(readFileSync(INPUT_FILE, 'utf-8'));
   const shops = rawData.shops;
-  console.log(`📊 Tổng cộng ${shops.length} shops cần geocode.\n`);
-
   const geocodedShops = [];
   const stats = { nominatim: 0, district_fallback: 0, default_fallback: 0 };
 
   for (let i = 0; i < shops.length; i++) {
     const shop = shops[i];
-    console.log(`[${i + 1}/${shops.length}] 🔍 ${shop.name}`);
-    console.log(`   📍 ${shop.address}`);
+
 
     const coords = await geocodeWithRetry(shop.address);
 
     const icon = coords.source === 'nominatim' ? '✅' : coords.source === 'district_fallback' ? '📍' : '⚠️';
-    console.log(`   ${icon} (${coords.strategy}) → ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`);
+
 
     if (coords.source === 'nominatim') stats.nominatim++;
     else if (coords.source === 'district_fallback') stats.district_fallback++;
@@ -204,14 +201,7 @@ async function main() {
 
   writeFileSync(OUTPUT_FILE, JSON.stringify(output, null, 2), 'utf-8');
 
-  console.log('\n' + '═'.repeat(50));
-  console.log('📊 KẾT QUẢ GEOCODE V2');
-  console.log('═'.repeat(50));
-  console.log(`   ✅ Nominatim chính xác: ${stats.nominatim}/${shops.length}`);
-  console.log(`   📍 Fallback quận/huyện: ${stats.district_fallback}/${shops.length}`);
-  console.log(`   ⚠️  Fallback HCM center: ${stats.default_fallback}/${shops.length}`);
-  console.log(`   📁 Output: ${OUTPUT_FILE}`);
-  console.log('═'.repeat(50));
+
 }
 
-main().catch(console.error);
+main().catch(() => {});

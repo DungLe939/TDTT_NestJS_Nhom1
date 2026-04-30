@@ -35,7 +35,7 @@ export class SchedulerService {
       }
       return null;
     } catch (error) {
-      console.error('Lỗi Geocoding:', error);
+
       return null;
     }
   }
@@ -59,13 +59,12 @@ export class SchedulerService {
       }
       return [];
     } catch (error) {
-      console.error('Lỗi Autocomplete:', error);
+
       return [];
     }
   }
 
   /**
-   * PHIÊN BẢN MỚI: Không cần quét LocationIQ hay fake data nữa.
    * Dữ liệu quán ăn ShopeeFood đã có sẵn trong ShopeeFoodLoader.
    * Chỉ cần geocode keyword → tọa độ rồi trả về xác nhận.
    * Được gọi từ endpoint: /schedule/searchLocation
@@ -84,130 +83,9 @@ export class SchedulerService {
     };
   }
 
-  //Hàm tạo lịch trình các quán ăn phù hợp
-  // Được gọi từ endpoint: /schedule/generatePlan
-  async createTravelPlan(body: any, guest_id: string) {
-    const {
-      budget, //tổng ngân sách
-      currentLocation, // tọa độ địa điểm du lịch
-      preferences, // sở thích/dị ứng
-      travelDays, //số ngày đi du lịch dự kiến
-    } = body;
-
-    // Phân bổ ngân sách theo từng buổi
-    const dailyBudget = budget / travelDays;
-    const mealBudgetConfig = {
-      breakfast: dailyBudget * 0.2, // 20% cho bữa sáng
-      lunch: dailyBudget * 0.3, // 30% cho bữa trưa
-      dinner: dailyBudget * 0.5, // 50% cho bữa tối
-    };
-
-    // Xác định maxPriceRange (dựa trên ngân sách bữa tối vì bữa tối chiếm 50% ngân sách của ngày)
-    let globalMaxPriceRange = 2;
-    if (mealBudgetConfig.dinner > 200000) globalMaxPriceRange = 3;
-
-    // Lọc thô (Raw Filter)
-    const rawRestaurants = await this.rawFilterHelper.rawData(
-      currentLocation,
-      globalMaxPriceRange,
-      guest_id,
-      travelDays,
-    );
-
-    if (!rawRestaurants || rawRestaurants.length === 0) {
-      return {
-        info: {
-          totalBudget: budget,
-          days: travelDays,
-          suggestedMealBudget: mealBudgetConfig,
-        },
-        count: 0,
-        plan: [],
-      };
-    }
-
-    // Chia cụm (Clustering)
-    const orderedPlan = this.clusteringHelper.clusteringStep(
-      rawRestaurants,
-      travelDays,
-      currentLocation,
-    );
-
-    // Lập lịch trình tổng thể
-    const { plan: finalPlanRaw, snackCandidates } =
-      await this.scoringHelper.generateFinalPlan(
-        orderedPlan,
-        mealBudgetConfig,
-        preferences,
-      );
-
-    // Bơm đầy đủ dữ liệu theo RestaurantDto để gửi về Frontend
-    const detailedPlan = finalPlanRaw.map((dayPlan) => {
-      const enrichedMeals = {};
-      const sessions = ['breakfast', 'lunch', 'dinner'];
-
-      for (const session of sessions) {
-        const aiChoice = dayPlan.meals[session];
-
-        if (!aiChoice) continue; // Chống crash hệ thống nếu ngày hôm đó AI hoặc Thuật toán chưa chọn được món
-
-        // Tìm quán gốc trong danh sách ban đầu dựa trên ID
-        const originalData = rawRestaurants.find((r) => r.id === aiChoice.id);
-
-        if (originalData) {
-          // Tìm ảnh của món ăn cụ thể trong menu
-          const selectedDishData = originalData.menu?.find(m => m.name === aiChoice.dish);
-
-          enrichedMeals[session] = {
-            // Thông tin từ AI (Món ăn cụ thể và lý do)
-            dish: aiChoice.dish,
-            price: aiChoice.price,
-            reason: aiChoice.reason,
-            category: aiChoice.category,
-            time: aiChoice.time,
-            type: 'main', // Mặc định là bữa chính
-            img: selectedDishData?.imageUrl || originalData.coverImage || '', // Lấy ảnh món ăn hoặc ảnh quán
-
-            // Thông tin gốc từ RestaurantDto (Dữ liệu cố định)
-            id: originalData.id,
-            name: originalData.name,
-            address: originalData.address || 'Địa chỉ đang cập nhật',
-            location: originalData.location,
-            priceRange: originalData.priceRange,
-            price_range: originalData.price_range, // Thêm dữ liệu giá chi tiết
-            rating: originalData.rating || 4.0,
-            openingHours: originalData.openingHours || { open: '07:00', close: '22:00' },
-            menu: originalData.menu,
-            guest_id: originalData.guest_id,
-          };
-        } else {
-          enrichedMeals[session] = aiChoice;
-        }
-      }
-
-      return {
-        day: dayPlan.day,
-        meals: enrichedMeals,
-      };
-    });
-
-    // Kết quả cuối cùng trả về cho Client
-    return {
-      success: true,
-      info: {
-        totalBudget: budget,
-        days: travelDays,
-        suggestedMealBudget: mealBudgetConfig,
-      },
-      count: rawRestaurants.length,
-      plan: detailedPlan, //lộ trình
-      snackCandidates: snackCandidates, //danh sách các quán ăn có món ăn vặt tiềm năng
-    };
-  }
 
   /**
    * preparePlanData: Bước chuẩn bị (Raw Filter + Clustering) trong luồng Streaming.
-   * [QUAN TRỌNG ĐỂ REVIEW]:
    * 1. Nhận vị trí người dùng, số ngày đi (travelDays) và ngân sách (budget).
    * 2. Lấy danh sách quán từ ShopeeFoodLoader.
    * 3. Phân cụm (Clustering) các quán ăn thành N cụm (tương ứng N ngày đi) bằng thuật toán K-means.
@@ -233,7 +111,7 @@ export class SchedulerService {
     let globalMaxPriceRange = 2;
     if (mealBudgetConfig.dinner > 200000) globalMaxPriceRange = 3;
 
-    // Lọc thô dữ liệu từ Firestore (Theo ý bạn: Vẫn dùng DB để quét quán ban đầu)
+    // Lọc thô dữ liệu
     const rawRestaurants = await this.rawFilterHelper.rawData(
       currentLocation,
       globalMaxPriceRange,
@@ -274,7 +152,6 @@ export class SchedulerService {
 
   /**
    * createSingleDayPlan: Tạo lịch trình cho một ngày cụ thể (Dùng cho Streaming).
-   * [QUAN TRỌNG ĐỂ REVIEW]:
    * 1. Lấy dữ liệu cụm của ngày `dayIndex` từ In-Memory Cache.
    * 2. Gọi `scoringHelper.generateSingleDayPlan` để nhờ AI (Gemini) chấm điểm quán ăn trong cụm.
    *    -> Lưu ý: AI chỉ chấm điểm, KHÔNG sinh metadata, giúp giảm token 80%.
@@ -375,11 +252,11 @@ export class SchedulerService {
       }
 
       require('fs').appendFileSync('osrm_error.log', new Date().toISOString() + ' - No Route Found cho: ' + url + '\n');
-      console.log('OSRM No Route:', url);
+
       return null;
     } catch (error) {
       require('fs').appendFileSync('osrm_error.log', new Date().toISOString() + ' - Lỗi OSRM Routing: ' + (error.response ? JSON.stringify(error.response.data) + ' URL: ' + url : error.message) + '\n');
-      console.error('Lỗi OSRM Routing:', error.response?.data || error.message);
+
       return null;
     }
   }
@@ -405,7 +282,7 @@ export class SchedulerService {
     // FALLBACK: Nếu chưa có dayScores trong cache (user click Đổi món quá nhanh
     // hoặc cache không lưu được), dùng rawRestaurants của cụm ngày đó với scores ngẫu nhiên.
     if (!scoredRestaurants || scoredRestaurants.length === 0) {
-      console.warn(`[SwapOptions] Không tìm thấy dayScores cho ngày ${dayIndex}, dùng fallback từ rawRestaurants.`);
+
       const dayPlan = cache.orderedPlan?.[dayIndex];
       if (dayPlan?.cluster?.restaurants?.length > 0) {
         scoredRestaurants = dayPlan.cluster.restaurants.map((res: any) => ({
