@@ -7,8 +7,24 @@
 
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { dc } from '../../providers/dataconnect.provider';
-// Chỉ định chính xác file .js để tránh lỗi MODULE_NOT_FOUND
-import { listFoods } from '../../dataconnect-admin-generated';
+import * as path from 'path';
+import * as fs from 'fs';
+
+// Helper to load DataConnect functions dynamically
+const loadDataConnect = () => {
+  const rootDir = process.cwd();
+  const paths = [
+    path.join(rootDir, 'src/dataconnect-admin-generated/index.cjs.js'),
+    path.join(rootDir, 'dataconnect-admin-generated/index.cjs.js'),
+    path.join(rootDir, 'dist/src/dataconnect-admin-generated/index.cjs.js'),
+  ];
+  for (const p of paths) {
+    if (fs.existsSync(p)) return require(p);
+  }
+  return require(paths[0]); // Fallback
+};
+
+const { listFoods } = loadDataConnect();
 import { IRestaurant } from '../../shared/interfaces/restaurant.interface';
 import { IDish } from '../../shared/interfaces/dish.interface';
 import NodeCache = require('node-cache');
