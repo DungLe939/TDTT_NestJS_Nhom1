@@ -97,6 +97,30 @@ export class ScoringHelper {
       const meals = ['breakfast', 'lunch', 'dinner'];
       const dayMealsResult: any = {};
 
+      /**
+       * [QUAN TRỌNG ĐỂ REVIEW]: Bộ lọc TOPPING/MÓN PHỤ
+       * Loại bỏ các món không phải món chính ra khỏi danh sách chọn.
+       * Ví dụ: "bịch bún thêm", "thịt thêm", "nước chấm", "trân châu thêm"...
+       * → Các món này KHÔNG nên xuất hiện trong lịch trình bữa ăn chính.
+       */
+      const TOPPING_KEYWORDS = [
+        'thêm', 'extra', 'topping', 'thêm phần', 'phần thêm',
+        'nước chấm', 'nước tương', 'nước mắm', 'tương ớt',
+        'đá', 'đá thêm', 'bịch', 'gói', 'hộp',
+        'upsize', 'size', 'nâng cấp',
+        'gia vị', 'muối', 'tiêu', 'ớt',
+        'khăn lạnh', 'túi', 'ly',
+      ];
+
+      /** Kiểm tra xem 1 món có phải topping/phần thêm hay không */
+      const isTopping = (dishName: string): boolean => {
+        const name = dishName.toLowerCase().trim();
+        // Kiểm tra từ khóa
+        if (TOPPING_KEYWORDS.some(kw => name.includes(kw))) return true;
+        // Kiểm tra giá quá rẻ (dưới 5.000đ) → chắc chắn là topping
+        return false;
+      };
+
       for (const meal of meals) {
         const targetBudget = mealBudgetConfig[meal]; // ngân sách mỗi bữa ăn
 
@@ -189,7 +213,7 @@ export class ScoringHelper {
             if (!isFinalLevel && currentScore < 0) continue;
 
             const dish = restaurant.menu?.find((d: any) =>
-              checkStrategy(d, restaurant),
+              !isTopping(d.name) && checkStrategy(d, restaurant),
             );
 
             if (dish) {
@@ -212,8 +236,13 @@ export class ScoringHelper {
               (m: any) => m.dish,
             );
             let validDishes = randomFallbackRestaurant.menu.filter(
-              (d: any) => !previousDishes.includes(d.name),
+              (d: any) => !isTopping(d.name) && !previousDishes.includes(d.name),
             );
+            if (validDishes.length === 0) {
+              validDishes = randomFallbackRestaurant.menu.filter(
+                (d: any) => !isTopping(d.name),
+              );
+            }
             if (validDishes.length === 0) validDishes = randomFallbackRestaurant.menu;
 
             validDishes.sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
@@ -414,10 +443,22 @@ export class ScoringHelper {
         (_d: any, _res: any) => true,
       ];
 
+      // Bộ lọc TOPPING — dùng chung logic với generateFinalPlan
+      const TOPPING_KEYWORDS = [
+        'thêm', 'extra', 'topping', 'thêm phần', 'phần thêm',
+        'nước chấm', 'nước tương', 'nước mắm', 'tương ớt',
+        'đá', 'đá thêm', 'bịch', 'gói', 'hộp',
+        'upsize', 'size', 'nâng cấp',
+        'gia vị', 'muối', 'tiêu', 'ớt',
+        'khăn lạnh', 'túi', 'ly',
+      ];
+      const isTopping = (name: string): boolean =>
+        TOPPING_KEYWORDS.some(kw => name.toLowerCase().trim().includes(kw));
+
       for (const checkStrategy of strategyLevels) {
         for (const restaurant of sortedRestaurants) {
           const dish = restaurant.menu?.find((d: any) =>
-            checkStrategy(d, restaurant),
+            !isTopping(d.name) && checkStrategy(d, restaurant),
           );
           if (dish) {
             selectedDish = dish;
