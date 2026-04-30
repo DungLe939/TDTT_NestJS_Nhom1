@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config'; // Thư viện hỗ trợ đọc cấu hình từ file .env
 import { TranslationModule } from './modules/translation/translation.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
+import { RestaurantsModule } from './modules/restaurants/restaurants.module';
 
 /**
  * AppModule là Module gốc của ứng dụng.
@@ -28,6 +29,7 @@ import { SchedulerModule } from './modules/scheduler/scheduler.module';
      * SchedulerModule: Module xử lý logic lập lịch và gợi ý địa điểm ăn uống.
      */
     SchedulerModule,
+    RestaurantsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

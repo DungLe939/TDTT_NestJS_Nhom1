@@ -18,8 +18,8 @@ if (!admin.apps.length) {
         }),
       });
     } catch (error) {
+      // Silent fail or handle error without emoji log
     }
-  } else {
   }
 }
 
