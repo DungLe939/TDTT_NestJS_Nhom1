@@ -227,7 +227,7 @@ export class SchedulerService {
     userLng: number,
     destLat: number,
     destLng: number,
-    mode: string = 'driving',
+    mode: string = 'car',
     steps: boolean = false,
   ) {
     let url = '';
