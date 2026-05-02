@@ -1,7 +1,7 @@
 
 import { getDataConnect } from 'firebase-admin/data-connect';
 import * as admin from 'firebase-admin';
-import { connectorConfig } from '../dataconnect-admin-generated/index.cjs.js';
+import { connectorConfig } from '@dataconnect/admin-generated';
 
 /**
  * Khởi tạo Firebase Admin App nếu chưa tồn tại.

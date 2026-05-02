@@ -8,7 +8,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { dc } from '../../providers/dataconnect.provider';
 // Chỉ định chính xác file .js để tránh lỗi MODULE_NOT_FOUND
-import { listFoods } from '../../dataconnect-admin-generated';
+import { listFoods } from '@dataconnect/admin-generated';
 import { IRestaurant } from '../../shared/interfaces/restaurant.interface';
 import { IDish } from '../../shared/interfaces/dish.interface';
 import NodeCache = require('node-cache');
@@ -53,8 +53,8 @@ export class RestaurantsService {
             id: shop.id,
             name: shop.name,
             location: {
-              lat: shop.lat || 10.762622,
-              lng: shop.lng || 106.660172,
+              lat: (shop as any).lat || 10.762622,
+              lng: (shop as any).lng || 106.660172,
             },
             address: (shop as any).address || `Địa chỉ tại Quận 1 (ID: ${shop.id})`,
             priceRange: 2,
@@ -121,8 +121,8 @@ export class RestaurantsService {
             id: shop.id,
             name: shop.name,
             location: {
-              lat: shop.lat || 10.762622,
-              lng: shop.lng || 106.660172,
+              lat: (shop as any).lat || 10.762622,
+              lng: (shop as any).lng || 106.660172,
             },
             address: (shop as any).address || `Địa chỉ tại Quận 1 (ID: ${shop.id})`,
             priceRange: 2,

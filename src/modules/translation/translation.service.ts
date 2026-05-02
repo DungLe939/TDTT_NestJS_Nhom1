@@ -49,12 +49,12 @@ export class TranslationService implements OnModuleInit, OnModuleDestroy {
 
         if (this.pythonProcess.stderr) {
             this.pythonProcess.stderr.on('data', (data: Buffer) => {
-                console.log(`[Python stderr] ${data.toString('utf-8')}`);
+
             });
         }
 
         this.pythonProcess.on('error', (error) => {
-            console.error('Python process error:', error);
+
         });
     }
 

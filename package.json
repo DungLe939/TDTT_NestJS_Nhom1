@@ -16,7 +16,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "seed:dataconnect": "ts-node scripts/seed-dataconnect.ts"
   },
   "dependencies": {
     "@dataconnect/admin-generated": "file:src/dataconnect-admin-generated",
@@ -34,6 +35,7 @@
     "cookie-parser": "1.4.7",
     "firebase": "^12.12.1",
     "firebase-admin": "^13.8.0",
+    "groq-sdk": "^1.1.2",
     "node-cache": "5.1.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",

@@ -28,6 +28,34 @@ function createFoodItem(dcOrVarsOrOptions, varsOrOptions, options) {
 }
 exports.createFoodItem = createFoodItem;
 
+function upsertPlanCache(dcOrVarsOrOptions, varsOrOptions, options) {
+  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
+  dcInstance.useGen(true);
+  return dcInstance.executeMutation('UpsertPlanCache', inputVars, inputOpts);
+}
+exports.upsertPlanCache = upsertPlanCache;
+
+function deletePlanCache(dcOrVarsOrOptions, varsOrOptions, options) {
+  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
+  dcInstance.useGen(true);
+  return dcInstance.executeMutation('DeletePlanCache', inputVars, inputOpts);
+}
+exports.deletePlanCache = deletePlanCache;
+
+function updateDayScores(dcOrVarsOrOptions, varsOrOptions, options) {
+  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
+  dcInstance.useGen(true);
+  return dcInstance.executeMutation('UpdateDayScores', inputVars, inputOpts);
+}
+exports.updateDayScores = updateDayScores;
+
+function updateUsedCategories(dcOrVarsOrOptions, varsOrOptions, options) {
+  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
+  dcInstance.useGen(true);
+  return dcInstance.executeMutation('UpdateUsedCategories', inputVars, inputOpts);
+}
+exports.updateUsedCategories = updateUsedCategories;
+
 function listCategories(dcOrOptions, options) {
   const { dc: dcInstance, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrOptions, options, undefined);
   dcInstance.useGen(true);
@@ -69,4 +97,18 @@ function listShops(dcOrVarsOrOptions, varsOrOptions, options) {
   return dcInstance.executeQuery('ListShops', inputVars, inputOpts);
 }
 exports.listShops = listShops;
+
+function listAllShopsWithMenu(dcOrOptions, options) {
+  const { dc: dcInstance, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrOptions, options, undefined);
+  dcInstance.useGen(true);
+  return dcInstance.executeQuery('ListAllShopsWithMenu', undefined, inputOpts);
+}
+exports.listAllShopsWithMenu = listAllShopsWithMenu;
+
+function getPlanCache(dcOrVarsOrOptions, varsOrOptions, options) {
+  const { dc: dcInstance, vars: inputVars, options: inputOpts} = validateAdminArgs(connectorConfig, dcOrVarsOrOptions, varsOrOptions, options, true, true);
+  dcInstance.useGen(true);
+  return dcInstance.executeQuery('GetPlanCache', inputVars, inputOpts);
+}
+exports.getPlanCache = getPlanCache;
 

@@ -32,10 +32,21 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Cho phép request không có origin (Postman, curl, server-to-server)
+      // Cho phép request không có origin (Postman, server-to-server, mobile app)
       if (!origin) return callback(null, true);
-      if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-      callback(new Error(`CORS blocked: origin "${origin}" không được phép`));
+
+      // Danh sách các origin được phép (Dev + Pinggy tunnel)
+      const allowedPatterns = [
+        /^http:\/\/localhost:\d+$/, // React dev (5173, 3000, etc.)
+        /^https?:\/\/.*\.pinggy\.link$/, // Pinggy tunnel
+      ];
+
+      const isAllowed = allowedPatterns.some((pattern) => pattern.test(origin));
+      if (isAllowed || ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, origin);
+      } else {
+        callback(null, origin); // Cho phép tất cả origin trong giai đoạn phát triển
+      }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
