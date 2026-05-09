@@ -119,7 +119,7 @@ export class MenuScanService implements OnModuleInit, OnModuleDestroy {
     // Determine correct script location (dist vs src)
     const isDist = __dirname.includes('dist');
     const pythonScriptPath = isDist
-        ? path.join(__dirname, '../../python/menu_ocr_service.py')
+        ? path.join(process.cwd(), 'dist/python/menu_ocr_service.py')
         : path.join(process.cwd(), 'src/python/menu_ocr_service.py');
 
     console.log('[MenuScanService] Starting Persistent AI Service...', pythonScriptPath);
