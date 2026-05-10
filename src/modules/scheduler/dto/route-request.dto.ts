@@ -1,4 +1,4 @@
-import { IsNumber } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsBoolean } from 'class-validator';
 
 /**
  * RouteRequestDto: Đối tượng dữ liệu gửi từ Client để yêu cầu tìm đường đi.
@@ -20,4 +20,14 @@ export class RouteRequestDto {
   // Kinh độ của vị trí đích đến
   @IsNumber()
   destLng: number;
+
+  // Phương tiện di chuyển (driving, foot, bicycle)
+  @IsOptional()
+  @IsString()
+  mode?: string;
+
+  // Yêu cầu chỉ đường chi tiết từng bước
+  @IsOptional()
+  @IsBoolean()
+  steps?: boolean;
 }

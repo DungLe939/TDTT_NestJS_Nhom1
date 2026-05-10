@@ -6,6 +6,7 @@ import { TranslationModule } from './modules/translation/translation.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { BlogModule } from './modules/blog/blog.module';
+import { RestaurantsModule } from './modules/restaurants/restaurants.module';
 
 /**
  * AppModule là Module gốc của ứng dụng.
@@ -40,6 +41,7 @@ import { BlogModule } from './modules/blog/blog.module';
      * BlogModule: Module thao tác tạo bài và kết nối hệ thống achievements.
      */
     BlogModule,
+    RestaurantsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
