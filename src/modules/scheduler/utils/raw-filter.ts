@@ -67,8 +67,8 @@ export class RawFilterHelper {
         const dist = calculateDistance(
           currentLocation.lat,
           currentLocation.lng,
-          restaurant.location.coordinates[1], // Vĩ độ (Latitude)
-          restaurant.location.coordinates[0], // Kinh độ (Longitude)
+          restaurant.location.coordinates[1], // Vĩ độ
+          restaurant.location.coordinates[0]  // Kinh độ
         );
 
         // Gắn thêm thông tin khoảng cách để dùng cho việc sắp xếp
@@ -78,8 +78,7 @@ export class RawFilterHelper {
         return isGoodRating && dist <= maxRadius;
       })
       /**
-       * 4. Sắp xếp theo khoảng cách:
-       * Ưu tiên các quán gần vị trí hiện tại nhất.
+       * 4. Sắp xếp theo khoảng cách
        */
       .sort((a: any, b: any) => a.distance - b.distance)
       .slice(0, limitCount);

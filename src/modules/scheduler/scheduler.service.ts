@@ -59,7 +59,6 @@ export class SchedulerService {
       }
       return [];
     } catch (error) {
-
       return [];
     }
   }
@@ -217,6 +216,99 @@ export class SchedulerService {
       day: dayIndex + 1,
       meals: enrichedMeals,
       snackCandidates: result.snackCandidates,
+    };
+  }
+
+  /**
+   * preparePlanData: Bước chuẩn bị (Raw Filter + Clustering) trong luồng Streaming.
+   * Phương thức này lọc dữ liệu từ Firestore và phân cụm quán ăn, sau đó lưu kết quả
+   * vào RAM Cache để các bước generateDayPlan tiếp theo có thể truy xuất ngay lập tức.
+   */
+  async preparePlanData(body: any, guestId: string) {
+    const { budget, currentLocation, preferences, travelDays } = body;
+    console.log(`[PreparePlanData] Payload:`, { budget, travelDays, guestId });
+
+    if (!currentLocation || !currentLocation.lat || !currentLocation.lng) {
+      throw new Error("Dữ liệu vị trí (currentLocation) không hợp lệ hoặc bị thiếu.");
+    }
+
+    // Tính toán cấu hình ngân sách
+    const dailyBudget = budget / travelDays;
+    const mealBudgetConfig = {
+      breakfast: dailyBudget * 0.2,
+      lunch: dailyBudget * 0.3,
+      dinner: dailyBudget * 0.5
+    };
+
+    let globalMaxPriceRange = 2;
+    if (mealBudgetConfig.dinner > 200000) globalMaxPriceRange = 3;
+
+    console.log(`[PreparePlanData] Đang gọi RawFilterHelper...`);
+    // Lọc thô dữ liệu từ Firestore (Theo ý bạn: Vẫn dùng DB để quét quán ban đầu)
+    const rawRestaurants = await this.rawFilterHelper.rawData(currentLocation, globalMaxPriceRange, guestId, travelDays);
+
+    if (!rawRestaurants || rawRestaurants.length === 0) {
+      console.log(`[PreparePlanData] Không tìm thấy quán nào.`);
+      return { success: false, message: 'Không tìm thấy quán ăn phù hợp tại khu vực này.' };
+    }
+
+    console.log(`[PreparePlanData] Tìm thấy ${rawRestaurants.length} quán. Đang phân cụm...`);
+    // Thực hiện phân cụm (Clustering) quán ăn theo số ngày đi
+    const orderedPlan = this.clusteringHelper.clusteringStep(rawRestaurants, travelDays, currentLocation);
+
+    console.log(`[PreparePlanData] Phân cụm xong. Đang lưu vào Cloud Cache...`);
+    // LƯU KẾT QUẢ VÀO CLOUD CACHE: Để các lượt gọi sau không phải tính lại bước này
+    await this.planCacheHelper.set(guestId, {
+      rawRestaurants,
+      orderedPlan,
+      mealBudgetConfig,
+      preferences,
+      usedCategories: []
+    });
+
+    console.log(`[PreparePlanData] Hoàn tất.`);
+    return {
+      success: true,
+      totalDays: travelDays,
+      info: { totalBudget: budget, suggestedMealBudget: mealBudgetConfig },
+      count: rawRestaurants.length
+    };
+  }
+
+  /**
+   * createSingleDayPlan: Tạo lịch trình cho một ngày cụ thể (Dùng cho Streaming).
+   * Frontend gọi hàm này lặp lại cho từng ngày (0, 1, 2...) để hiển thị kết quả dần dần.
+   */
+  async createSingleDayPlan(guestId: string, dayIndex: number) {
+    const cache = await this.planCacheHelper.get(guestId);
+    if (!cache) {
+      throw new Error("Lỗi: Phiên chuẩn bị dữ liệu đã hết hạn hoặc không tồn tại. Vui lòng thử lại.");
+    }
+
+    const dayPlan = cache.orderedPlan[dayIndex];
+    if (!dayPlan) {
+      throw new Error(`Lỗi: Không tìm thấy dữ liệu cho ngày thứ ${dayIndex + 1}.`);
+    }
+
+    // Gọi logic ScoringHelper kết hợp với AI (Gemini) để chọn quán cho ngày này
+    const result = await this.scoringHelper.generateSingleDayPlan(
+      dayPlan,
+      cache.mealBudgetConfig,
+      cache.preferences,
+      cache.usedCategories
+    );
+
+    // Cập nhật danh sách loại món đã ăn để ngày hôm sau AI không chọn trùng
+    await this.planCacheHelper.updateUsedCategories(guestId, result.newUsedCategories);
+
+    // LƯU KẾT QUẢ ĐÃ CHẤM ĐIỂM VÀO CACHE: Để phục vụ tính năng "Đổi món" (Swap Meal)
+    // Việc này giúp tránh việc phải gọi lại AI Gemini cực kỳ tốn kém và chậm chạp.
+    await this.planCacheHelper.saveDayScores(guestId, dayIndex, result.scoredRestaurants);
+
+    return {
+      day: dayIndex + 1,
+      meals: result.dayResult.meals,
+      snackCandidates: result.snackCandidates
     };
   }
 

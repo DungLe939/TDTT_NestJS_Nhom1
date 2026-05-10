@@ -8,6 +8,7 @@ import { SortingHelper } from './algorithms/sorting';
 import { RawFilterHelper } from './utils/raw-filter';
 import { ScoringHelper } from './utils/scoring';
 import { GeminiScoringHelper } from './utils/gemini-scoring';
+import { GeminiGenerateScheduleHelper } from './utils/gemini-generate-schelude';
 import { PlanCacheHelper } from './utils/plan-cache';
 import { ShopeeFoodLoader } from './utils/shopeefood-loader';
 
@@ -20,6 +21,7 @@ import { ShopeeFoodLoader } from './utils/shopeefood-loader';
     RawFilterHelper,
     ScoringHelper,
     GeminiScoringHelper,
+    GeminiGenerateScheduleHelper,
     PlanCacheHelper,
     ShopeeFoodLoader,
   ],
