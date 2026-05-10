@@ -89,7 +89,7 @@ export class MenuScanService implements OnModuleInit, OnModuleDestroy {
       const models = response.data.models || [];
       const modelNames = models.map((m: any) => m.name.replace('models/', ''));
       console.log('[MenuScanService] Available models for this key:', modelNames.join(', '));
-      
+
       // Update candidates if needed or log if current model is missing
       if (modelNames.length > 0 && !modelNames.includes(this.geminiModelName)) {
         console.warn(`[MenuScanService] WARNING: Your primary model ${this.geminiModelName} is NOT in the available models list!`);
@@ -119,8 +119,8 @@ export class MenuScanService implements OnModuleInit, OnModuleDestroy {
     // Determine correct script location (dist vs src)
     const isDist = __dirname.includes('dist');
     const pythonScriptPath = isDist
-        ? path.join(process.cwd(), 'dist/python/menu_ocr_service.py')
-        : path.join(process.cwd(), 'src/python/menu_ocr_service.py');
+      ? path.join(process.cwd(), 'dist/python/menu_ocr_service.py')
+      : path.join(process.cwd(), 'src/python/menu_ocr_service.py');
 
     console.log('[MenuScanService] Starting Persistent AI Service...', pythonScriptPath);
     this.pythonProcess = spawn('python', [pythonScriptPath], {
@@ -177,7 +177,7 @@ export class MenuScanService implements OnModuleInit, OnModuleDestroy {
 
       console.error(`[MenuScanService] Python process closed with code ${code}. Restarting...`);
       this.isModelLoaded = false;
-      
+
       while (this.pendingRequests.length > 0) {
         const req = this.pendingRequests.shift();
         if (req) req.reject(new InternalServerErrorException('AI Service disconnected.'));
@@ -207,7 +207,7 @@ export class MenuScanService implements OnModuleInit, OnModuleDestroy {
     const prompt =
       this.configService.get<string>('GEMINI_OCR_PROMPT') ||
       'Hãy trích xuất toàn bộ văn bản trong hình ảnh. ' +
-        'Giữ nguyên xuống dòng theo từng dòng menu, không thêm giải thích, không thêm ký tự thừa.';
+      'Giữ nguyên xuống dòng theo từng dòng menu, không thêm giải thích, không thêm ký tự thừa.';
 
     try {
       const candidates = [
@@ -245,13 +245,13 @@ export class MenuScanService implements OnModuleInit, OnModuleDestroy {
           console.error(`[MenuScanService] Gemini candidate ${candidate} failed:`, err);
           lastError = err;
           const message = err instanceof Error ? err.message : String(err);
-          
+
           // Only stop and throw immediately if it's an authentication error
           const isAuthError = message.includes('401') || message.includes('API_KEY_INVALID') || message.includes('Invalid API Key');
           if (isAuthError) {
             throw err;
           }
-          
+
           // Otherwise, continue to next candidate (404, 429, 500, etc.)
           console.warn(`[MenuScanService] Retrying with next model due to error with ${candidate}...`);
         }
@@ -281,7 +281,7 @@ export class MenuScanService implements OnModuleInit, OnModuleDestroy {
       }
 
       this.pendingRequests.push({ resolve, reject });
-      
+
       const payload = JSON.stringify({ image_path: imagePath });
       this.pythonProcess.stdin.write(payload + '\n');
     });

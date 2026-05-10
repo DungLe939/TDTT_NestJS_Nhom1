@@ -218,7 +218,7 @@ def smart_tourism_ai(user_input, method='en2vi', source='chat'):
         
         # 1. Lọc địa chỉ & Thông tin liên hệ
         noise_keywords = [
-            'phường', 'quận', 'đường', 'tp.', 'thành phố', 
+            'phường', 'quận', 'tp.', 'thành phố', 
             'ltd', 'co.', 'company', 'corp', 'hotline', 'tel:', 'đt:',
             'website', 'www.', '.com', '.vn', '.net', 'facebook', 'fb.com'
         ]
