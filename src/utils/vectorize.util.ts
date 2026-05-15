@@ -17,16 +17,20 @@ export function vectorizeTags(tags: string[]): number[] {
   const lowerTags = tags.map(t => t.toLowerCase().trim());
 
   TASTE_DIMENSIONS.forEach((dim, index) => {
-    // Nếu tag xuất hiện trực tiếp trong danh sách
-    if (lowerTags.includes(dim.toLowerCase())) {
+    const dimLower = dim.toLowerCase();
+    
+    // Kiểm tra nếu bất kỳ tag nào (hoặc tên món) chứa từ khóa sở thích
+    if (lowerTags.some(t => t.includes(dimLower))) {
       vector[index] = 1.0;
     } 
-    // Có thể mở rộng thêm logic mapping từ đồng nghĩa ở đây
-    else if (dim === 'cay' && (lowerTags.includes('spicy') || lowerTags.includes('sa tế'))) {
+    else if (dimLower === 'cay' && lowerTags.some(t => t.includes('spicy') || t.includes('sa tế') || t.includes('sate') || t.includes('ớt'))) {
       vector[index] = 0.8;
     }
-    else if (dim === 'ngot' && (lowerTags.includes('sweet') || lowerTags.includes('tráng miệng'))) {
+    else if (dimLower === 'ngot' && lowerTags.some(t => t.includes('sweet') || t.includes('đường') || t.includes('mật ong'))) {
       vector[index] = 0.8;
+    }
+    else if (dimLower === 'chay' && lowerTags.some(t => t.includes('vegetarian') || t.includes('vegan'))) {
+      vector[index] = 1.0;
     }
   });
 

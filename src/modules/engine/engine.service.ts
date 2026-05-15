@@ -123,7 +123,7 @@ export class EngineService {
       // Step 1: Vectorization (nếu dữ liệu DB chưa có vector)
       const dishVector = (dish.restaurant && dish.restaurant.tasteVector && dish.restaurant.tasteVector.length === 7)
         ? dish.restaurant.tasteVector
-        : vectorizeTags(dish.tags);
+        : vectorizeTags([...dish.tags, dish.name]);
 
       // Step 3 & 4: Similarity & Aggregation
       // Tạo một đối tượng IRestaurant tạm thời để dùng với computeIndividualSimilarities
