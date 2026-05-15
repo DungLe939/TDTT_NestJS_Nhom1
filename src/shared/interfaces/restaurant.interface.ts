@@ -34,12 +34,12 @@ export interface IRestaurant {
   /**
    * Vector đặc trưng ẩm thực — giá trị [0.0, 1.0] cho mỗi chiều.
    *
-   * Cùng không gian 8 chiều với user taste_vector:
+   * Cùng không gian 7 chiều với user taste_vector:
    *   [0] cay, [1] ngot, [2] man, [3] chua,
-   *   [4] beo, [5] thanh_dam, [6] hai_san, [7] chay
+   *   [4] beo, [5] thanh_dam, [6] chay
    *
-   * Ví dụ: Phở → [0.3, 0.1, 0.7, 0.2, 0.4, 0.5, 0.0, 0.0]
-   *   (mặn vừa, thanh đạm, không hải sản, không chay)
+   * Ví dụ: Phở → [0.3, 0.1, 0.7, 0.2, 0.4, 0.5, 0.0]
+   *   (mặn vừa, thanh đạm, không chay)
    */
   tasteVector: number[];
 

@@ -16,10 +16,10 @@ export const MAX_RATING = 5;
 export const TOP_K = 5;
 
 /** Số chiều của taste vector */
-export const TASTE_VECTOR_SIZE = 8;
+export const TASTE_VECTOR_SIZE = 7;
 
 /**
- * Labels cho các chiều taste vector (8 dimensions).
+ * Labels cho các chiều taste vector (7 dimensions).
  *
  * Dùng để mapping sở thích của user sang vector số hóa.
  * User và restaurant phải cùng thứ tự chiều này.
@@ -31,8 +31,7 @@ export const TASTE_DIMENSIONS = [
   'chua', // [3] Sour
   'beo', // [4] Rich/Fatty
   'thanh_dam', // [5] Light/Fresh
-  'hai_san', // [6] Seafood
-  'chay', // [7] Vegetarian
+  'chay', // [6] Vegetarian
 ] as const;
 
 /**

@@ -10,13 +10,17 @@ import {
   getGroupDistanceTolerance,
   getGroupMinRating,
   getGroupAllergies,
+  computeIndividualSimilarities,
+  aggregateGroupScore,
 } from './algorithms/group-aggregation';
 import {
   MAX_DISTANCE_KM,
   TOP_K,
   budgetToPriceRange,
+  TASTE_DIMENSIONS,
 } from './algorithms/scoring';
 import { calculateDistance } from '../../utils/haversine.util';
+import { vectorizeTags } from '../../utils/vectorize.util';
 import { IRestaurant } from '../../shared/interfaces/restaurant.interface';
 import { IUser } from '../../shared/interfaces/user.interface';
 import { IDish } from '../../shared/interfaces/dish.interface';
@@ -104,29 +108,6 @@ export class EngineService {
       }
     }
 
-    // ---- Scoring (Dish-based) ----
-    // Tính match_score dựa trên tags của group preferences
-    const tagCounts: Record<string, number> = {};
-    const TASTE_LABELS: Record<string, string> = {
-      cay: 'Hợp khẩu vị cay',
-      ngot: 'Hợp khẩu vị ngọt',
-      man: 'Hợp khẩu vị mặn',
-      chua: 'Hợp khẩu vị chua',
-      beo: 'Hợp khẩu vị béo',
-      thanh_dam: 'Hợp khẩu vị thanh đạm',
-      hai_san: 'Hợp khẩu vị hải sản',
-      chay: 'Món chay phù hợp',
-    };
-
-    for (const user of users) {
-      if (user.tags) {
-        for (const tag of user.tags) {
-          const lowerTag = tag.toLowerCase().trim();
-          tagCounts[lowerTag] = (tagCounts[lowerTag] || 0) + 1;
-        }
-      }
-    }
-
     // Tính avg budget của nhóm
     const groupAvgBudget = users.length > 0
       ? users.reduce((sum, u) => sum + (u.budget || 0), 0) / users.length
@@ -137,49 +118,52 @@ export class EngineService {
       ? users.reduce((sum, u) => sum + (u.min_rating || 3.0), 0) / users.length
       : 3.0;
 
+    // ---- Scoring (Dish-based with POC Pipeline) ----
     const scoredDishes = filteredDishes.map(({ dish, distance }) => {
-      let matchScore = 0;
-      const matchedTags: string[] = [];
+      // Step 1: Vectorization (nếu dữ liệu DB chưa có vector)
+      const dishVector = (dish.restaurant && dish.restaurant.tasteVector && dish.restaurant.tasteVector.length === 7)
+        ? dish.restaurant.tasteVector
+        : vectorizeTags(dish.tags);
 
-      for (const tag of dish.tags) {
-        const lowerTag = tag.toLowerCase().trim();
-        if (tagCounts[lowerTag]) {
-          matchScore += tagCounts[lowerTag];
-          if (TASTE_LABELS[lowerTag] && !matchedTags.includes(TASTE_LABELS[lowerTag])) {
-            matchedTags.push(TASTE_LABELS[lowerTag]);
-          }
-        }
-      }
+      // Step 3 & 4: Similarity & Aggregation
+      // Tạo một đối tượng IRestaurant tạm thời để dùng với computeIndividualSimilarities
+      const tempRestaurant: IRestaurant = {
+        ...dish.restaurant!,
+        tasteVector: dishVector,
+      };
 
-      // Ranking: score = rating + match_score - distance
+      const individualSims = computeIndividualSimilarities(users, tempRestaurant);
+      
+      // Aggregation: Kết hợp Average và Least Misery (Min)
+      const aggregatedSim = aggregateGroupScore(individualSims, { 
+        avgWeight: 0.7, 
+        minWeight: 0.3 
+      });
+
+      // MatchScore trong công thức: Score = Rating + MatchScore - Distance
+      // Chúng ta scale aggregatedSim (0-1) lên thang điểm 10 để có trọng số tốt
+      const matchScore = aggregatedSim * 10;
+
+      // Ranking formula từ Engine Logic: Score = Rating + MatchScore - Distance
       const finalScore = dish.rating + matchScore - distance;
 
-      // Xây dựng matchedReasons
+      // Xây dựng matchedReasons dựa trên đặc trưng vector (vùng cao nhất)
       const reasons: string[] = [];
+      
+      // Ngân sách & Khoảng cách
+      if (dish.price <= groupAvgBudget) reasons.push('Phù hợp ngân sách nhóm');
+      if (distance <= 1.0) reasons.push(`Rất gần (${distance.toFixed(1)} km)`);
+      else if (distance <= 3.0) reasons.push(`Gần (${distance.toFixed(1)} km)`);
 
-      // Lý do 1: ngân sách
-      if (dish.price <= groupAvgBudget) {
-        reasons.push('Phù hợp ngân sách nhóm');
+      // Khẩu vị (Dựa trên similarity)
+      if (aggregatedSim > 0.7) {
+        reasons.push('Rất hợp khẩu vị nhóm 🔥');
+      } else if (aggregatedSim > 0.4) {
+        reasons.push('Hợp khẩu vị');
       }
 
-      // Lý do 2: khoảng cách
-      if (distance <= 1.0) {
-        reasons.push(`Rất gần (${distance.toFixed(1)} km)`);
-      } else if (distance <= 3.0) {
-        reasons.push(`Gần (${distance.toFixed(1)} km)`);
-      } else {
-        reasons.push(`Cách ${distance.toFixed(1)} km`);
-      }
-
-      // Lý do 3: khẩu vị
-      reasons.push(...matchedTags.slice(0, 2));
-
-      // Lý do 4: rating
-      if (dish.rating >= 4.5) {
-        reasons.push('Rating xuất sắc ⭐');
-      } else if (dish.rating >= 4.0) {
-        reasons.push('Rating tốt');
-      }
+      // Rating
+      if (dish.rating >= 4.5) reasons.push('Rating xuất sắc ⭐');
 
       return {
         dish,
@@ -239,6 +223,8 @@ export class EngineService {
   ): { dish: IDish; distance: number }[] {
     const results: { dish: IDish; distance: number }[] = [];
 
+    const allergyList = Array.from(allergies).map(a => a.toLowerCase());
+
     for (const dish of dishes) {
       const restaurant = dish.restaurant;
       if (!restaurant) continue;
@@ -258,16 +244,16 @@ export class EngineService {
       if (dish.price > groupBudget) continue;
       if (minRating > 0 && dish.rating < minRating) continue;
 
-      if (allergies.size > 0) {
+      if (allergyList.length > 0) {
         const dishContent = `${dish.name} ${dish.tags.join(' ')}`.toLowerCase();
-        const hasAllergenInDish = Array.from(allergies).some((a) =>
-          dishContent.includes(a.toLowerCase()),
+        const hasAllergenInDish = allergyList.some((a) =>
+          dishContent.includes(a),
         );
         if (hasAllergenInDish) continue;
 
         if (restaurant.menu_ingredients) {
           const hasAllergenInIngredients = restaurant.menu_ingredients.some(
-            (ingredient) => allergies.has(ingredient.toLowerCase().trim()),
+            (ingredient) => allergyList.includes(ingredient.toLowerCase().trim()),
           );
           if (hasAllergenInIngredients) continue;
         }
