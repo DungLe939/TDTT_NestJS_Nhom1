@@ -104,7 +104,7 @@ export class EngineService {
 
       if (filteredDishes.length === 0) {
         this.logger.warn('Vẫn không có kết quả → loại bỏ giới hạn ngân sách...');
-        filteredDishes = this.filterDishes(allDishes, currentLocation, groupDistance * 3, Infinity, 0, new Set());
+        filteredDishes = this.filterDishes(allDishes, currentLocation, groupDistance * 3, Infinity, 0, groupAllergies);
       }
     }
 
