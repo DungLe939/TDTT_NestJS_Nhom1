@@ -7,6 +7,7 @@ import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { BlogModule } from './modules/blog/blog.module';
 import { RestaurantsModule } from './modules/restaurants/restaurants.module';
+import { ChatbotModule } from './modules/chatbot/chatbot.module';
 
 /**
  * AppModule là Module gốc của ứng dụng.
@@ -42,6 +43,11 @@ import { RestaurantsModule } from './modules/restaurants/restaurants.module';
      */
     BlogModule,
     RestaurantsModule,
+
+    /**
+     * ChatbotModule: Module proxy DeepSeek API cho chatbot (bảo mật API Key).
+     */
+    ChatbotModule,
   ],
   controllers: [AppController],
   providers: [AppService],
