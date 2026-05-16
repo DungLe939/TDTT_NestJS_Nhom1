@@ -11,8 +11,10 @@ import { GeminiScoringHelper } from './utils/gemini-scoring';
 
 import { PlanCacheHelper } from './utils/plan-cache';
 import { ShopeeFoodLoader } from './utils/shopeefood-loader';
+import { AchievementsModule } from '../achievements/achievements.module';
 
 @Module({
+  imports: [AchievementsModule],
   controllers: [SchedulerController],
   providers: [
     SchedulerService,

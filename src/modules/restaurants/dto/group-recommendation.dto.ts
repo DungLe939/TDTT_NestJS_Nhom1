@@ -99,6 +99,10 @@ export class GroupRecommendationDto {
   @ValidateNested()
   @Type(() => AggregationWeightsDto)
   aggregationWeights?: AggregationWeightsDto;
+
+  @IsOptional()
+  @IsString()
+  curUserId?: string;
 }
 
 /** Điểm tương đồng của một thành viên cho một nhà hàng. */

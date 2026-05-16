@@ -10,8 +10,8 @@ export type ActivityEventType =
     | 'RESTAURANT_VISITED'
     | 'POST_LIKED'
     | 'FOOD_SCANNED'
-    | 'MENU_TRANSLATED'
-    | 'SCHEDULE_COMPLETED'
+    | 'TEXT_TRANSLATED'
+    | 'SCHEDULE_CREATED'
     | 'GROUP_TASTE_USED';
 
 // payload được gửi từ các feature khác — typed thay vì any
@@ -30,7 +30,7 @@ export interface ActivityEvent {
     userId: string;
     type: ActivityEventType;
     occurredAt: Date;
-    payload: ActivityEventPayload;
+    payload?: ActivityEventPayload;
 }
 
 // achievement condition: hành động mà user cần làm để nhận reward
@@ -131,7 +131,7 @@ export const XP_PER_ACTIVITY: Record<ActivityEventType, number> = {
     RESTAURANT_VISITED: 20,
     POST_LIKED: 5,
     FOOD_SCANNED: 10,
-    MENU_TRANSLATED: 10,
-    SCHEDULE_COMPLETED: 10,
+    TEXT_TRANSLATED: 10,
+    SCHEDULE_CREATED: 10,
     GROUP_TASTE_USED: 10,
 }

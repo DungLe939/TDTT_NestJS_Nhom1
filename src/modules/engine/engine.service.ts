@@ -24,12 +24,16 @@ import { vectorizeTags } from '../../utils/vectorize.util';
 import { IRestaurant } from '../../shared/interfaces/restaurant.interface';
 import { IUser } from '../../shared/interfaces/user.interface';
 import { IDish } from '../../shared/interfaces/dish.interface';
+import { AchievementService } from '../achievements/achievements.service';
 
 @Injectable()
 export class EngineService {
   private readonly logger = new Logger(EngineService.name);
 
-  constructor(private readonly restaurantsService: RestaurantsService) {}
+  constructor(
+    private readonly restaurantsService: RestaurantsService,
+    private readonly achievementService: AchievementService,
+  ) { }
 
   private priceRangeToPrice(range: number): number {
     if (range === 1) return 30000;
@@ -44,6 +48,7 @@ export class EngineService {
   async getGroupRecommendations(
     dto: GroupRecommendationDto,
     guestId: string,
+    curUserID: string,
   ): Promise<GroupRecommendationResponseDto> {
     const { users: groupUsers, currentLocation } = dto;
 
@@ -133,11 +138,11 @@ export class EngineService {
       };
 
       const individualSims = computeIndividualSimilarities(users, tempRestaurant);
-      
+
       // Aggregation: Kết hợp Average và Least Misery (Min)
-      const aggregatedSim = aggregateGroupScore(individualSims, { 
-        avgWeight: 0.7, 
-        minWeight: 0.3 
+      const aggregatedSim = aggregateGroupScore(individualSims, {
+        avgWeight: 0.7,
+        minWeight: 0.3
       });
 
       // MatchScore trong công thức: Score = Rating + MatchScore - Distance
@@ -149,7 +154,7 @@ export class EngineService {
 
       // Xây dựng matchedReasons dựa trên đặc trưng vector (vùng cao nhất)
       const reasons: string[] = [];
-      
+
       // Ngân sách & Khoảng cách
       if (dish.price <= groupAvgBudget) reasons.push('Phù hợp ngân sách nhóm');
       if (distance <= 1.0) reasons.push(`Rất gần (${distance.toFixed(1)} km)`);
@@ -205,6 +210,14 @@ export class EngineService {
         matchedReasons: item.matchedReasons,
       } as DishInfoDto;
     });
+
+
+    // Log activity: GROUP_TASTE_USED
+    await this.achievementService.handleActivityEvent({
+      userId: curUserID ?? "",
+      type: 'GROUP_TASTE_USED',
+      occurredAt: new Date(),
+    }).catch();
 
     return {
       totalCandidates: allDishes.length,

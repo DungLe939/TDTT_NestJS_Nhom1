@@ -50,11 +50,14 @@ export class AchievementService {
     *     userId: 'user_abc',
     *     type: 'FOOD_SCANNED',
     *     occurredAt: new Date(),
-    *     payload: { scannedFoodId: 'food_xyz', cuisineType: 'japanese' }
     *   });
     */
     async handleActivityEvent(event: ActivityEvent): Promise<void> {
-        // ghi su kien vao log
+        if (!event.userId || event.userId == '') {
+            this.logger.error('User ID is required for activity event');
+            return;
+        }
+
         this.logger.log(`Received event ${event.type} for user ${event.userId}`);
 
         // Persist event vào activity_logs collection (cần cho recountFromLog)
@@ -110,13 +113,13 @@ export class AchievementService {
         if (event.type !== condition.eventType) return false;
 
         // kiểm tra xem các điều kiện khác có match không
-        if (condition.filters?.cuisineType && event.payload.cuisineType !== condition.filters.cuisineType) return false;
+        if (condition.filters?.cuisineType && event.payload?.cuisineType !== condition.filters.cuisineType) return false;
         if (condition.filters?.withinDays) {
             const limitDate = new Date(Date.now() - condition.filters.withinDays * 24 * 60 * 60 * 1000);
             const occurredAtDate = event.occurredAt instanceof Date ? event.occurredAt : new Date(event.occurredAt);
             if (occurredAtDate < limitDate) return false;
         }
-        if (condition.filters?.tag && !event.payload.tags?.includes(condition.filters.tag)) return false;
+        if (condition.filters?.tag && !event.payload?.tags?.includes(condition.filters.tag)) return false;
 
         return true;
     }
