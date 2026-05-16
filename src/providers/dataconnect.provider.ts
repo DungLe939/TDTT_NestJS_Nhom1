@@ -1,3 +1,5 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
 
 import { getDataConnect } from 'firebase-admin/data-connect';
 import * as admin from 'firebase-admin';

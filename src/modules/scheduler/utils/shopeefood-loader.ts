@@ -69,6 +69,7 @@ export interface TransformedRestaurant {
 
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { listAllShopsWithMenu } from '@dataconnect/admin-generated';
+import { dc } from '../../../providers/dataconnect.provider';
 
 @Injectable()
 export class ShopeeFoodLoader implements OnModuleInit {
@@ -90,17 +91,17 @@ export class ShopeeFoodLoader implements OnModuleInit {
     try {
       // 1. Khởi tạo Firebase Admin nếu chưa có
       if (getApps().length === 0) {
-        // Cấu hình Emulator nếu chạy local (được định nghĩa trong .env hoặc mặc định)
+        // Cấu hình Emulator chuẩn cho Admin SDK
         if (process.env.NODE_ENV !== 'production') {
-          process.env.FIREBASE_DATA_CONNECT_EMULATOR_HOST = '127.0.0.1:9399';
+          process.env.DATA_CONNECT_EMULATOR_HOST = '127.0.0.1:9399';
         }
         initializeApp({
           projectId: 'smart-tourism-abf26',
         });
       }
 
-      // 2. Lấy dữ liệu qua GraphQL Query đã sinh ra
-      const res = await listAllShopsWithMenu();
+      // 2. Lấy dữ liệu qua GraphQL Query đã sinh ra (Truyền dc instance)
+      const res = await listAllShopsWithMenu(dc);
       const shops = res.data.shops;
 
       if (!shops || shops.length === 0) {
@@ -211,7 +212,10 @@ export class ShopeeFoodLoader implements OnModuleInit {
       address: shop.address,
       location: {
         type: 'Point',
-        coordinates: [shop.longitude || 106.660172, shop.latitude || 10.762622],
+        coordinates: [
+          shop.lng || 106.660172,
+          shop.lat || 10.762622
+        ],
       },
       priceRange,
       price_range: {

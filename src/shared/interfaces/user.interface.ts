@@ -19,15 +19,14 @@ export interface IUser {
   /**
    * Vector sở thích ẩm thực — giá trị [0.0, 1.0] cho mỗi chiều.
    *
-   * Các chiều (8 dimensions):
+   * Các chiều (7 dimensions):
    *   [0] cay        - Mức độ yêu thích đồ cay
    *   [1] ngot       - Mức độ yêu thích đồ ngọt
    *   [2] man        - Mức độ yêu thích đồ mặn/đậm đà
    *   [3] chua       - Mức độ yêu thích đồ chua
    *   [4] beo        - Mức độ yêu thích đồ béo/dầu mỡ
    *   [5] thanh_dam  - Mức độ yêu thích đồ thanh đạm
-   *   [6] hai_san    - Mức độ yêu thích hải sản
-   *   [7] chay       - Mức độ yêu thích đồ chay/rau củ
+   *   [6] chay       - Mức độ yêu thích đồ chay/rau củ
    *
    * User và restaurant phải cùng không gian vector để tính Cosine Similarity.
    */

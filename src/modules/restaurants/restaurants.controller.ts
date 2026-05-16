@@ -102,7 +102,7 @@ export class RestaurantsController {
     };
 
     const relatedFoods = allDishes
-      .filter(d => d.restaurantId !== selectedRestaurant.id && d.tags.some(tag => selectedFood.tags.includes(tag)))
+      .filter(d => d.restaurantId !== selectedRestaurant.id && d.tags.some(tag => (selectedFood.tags || []).includes(tag)))
       .slice(0, 6)
       .map(d => ({
         id: d.id,
@@ -114,16 +114,32 @@ export class RestaurantsController {
         shop: { id: d.restaurantId, name: d.restaurant!.name }
       }));
 
+    if (relatedFoods.length < 4) {
+      const fallback = allDishes
+        .filter(d => d.restaurantId !== selectedRestaurant.id && !relatedFoods.some(rf => rf.id === d.id))
+        .slice(0, 6 - relatedFoods.length)
+        .map(d => ({
+          id: d.id,
+          name: d.name,
+          price: d.price,
+          rating: d.rating,
+          image_url: d.image_url,
+          groupName: d.tags?.[0] || 'Món ăn',
+          shop: { id: d.restaurantId, name: d.restaurant!.name }
+        }));
+      relatedFoods.push(...fallback);
+    }
+
     const recommendedShops = allRestaurants
-      .filter(r => r.id !== selectedRestaurant.id && r.tags?.some(tag => selectedFood.tags.includes(tag)))
-      .slice(0, 6)
-      .map(r => ({
-        id: r.id,
-        name: r.name,
-        address: r.address || `Địa chỉ tại Quận 1 (ID: ${r.id})`,
-        rating: r.rating || 4.0,
-        cover_image: r.cover_image,
-      }));
+      .filter(r => r.id !== selectedRestaurant.id && r.tags?.some(tag => (selectedFood.tags || []).includes(tag)))
+      .slice(0, 6);
+
+    if (recommendedShops.length < 4) {
+      const fallback = allRestaurants
+        .filter(r => r.id !== selectedRestaurant.id && !recommendedShops.some(rs => rs.id === r.id))
+        .slice(0, 6 - recommendedShops.length);
+      recommendedShops.push(...fallback);
+    }
 
     return {
       selectedFood,

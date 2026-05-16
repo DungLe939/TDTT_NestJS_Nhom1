@@ -114,7 +114,9 @@ export class RestaurantsService {
           price: item.price || 50000,
           description: (item as any).description || null,
           image_url: (item as any).imageUrl || null,
-          tags: item.category ? [item.category.name] : [],
+          tags: item.tags && item.tags.length > 0 
+            ? item.tags 
+            : (item.category ? [item.category.name] : []),
           rating: shop.rating || 4.0,
           restaurantId: shop.id,
           restaurant: {
@@ -128,7 +130,9 @@ export class RestaurantsService {
             priceRange: 2,
             tasteVector: [],
             rating: shop.rating || 4.0,
-            tags: item.category ? [item.category.name] : [],
+            tags: item.tags && item.tags.length > 0 
+              ? item.tags 
+              : (item.category ? [item.category.name] : []),
             opening_hours: (shop as any).openingHours || ((shop as any).openTime ? `${(shop as any).openTime}-${(shop as any).closeTime}` : "08:00-22:00"),
             cover_image: (shop as any).coverImage || null,
           } as IRestaurant
