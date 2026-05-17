@@ -10,9 +10,11 @@
 import { Module } from '@nestjs/common';
 import { EngineService } from './engine.service';
 import { RestaurantsService } from '../restaurants/restaurants.service';
+import { AchievementsModule } from '../achievements/achievements.module';
 
 @Module({
+  imports: [AchievementsModule],
   providers: [EngineService, RestaurantsService],
   exports: [EngineService],
 })
-export class EngineModule {}
+export class EngineModule { }

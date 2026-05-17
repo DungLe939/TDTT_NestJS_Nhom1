@@ -48,7 +48,7 @@ export class RestaurantsController {
       );
     }
 
-    return this.engineService.getGroupRecommendations(dto, guestId);
+    return this.engineService.getGroupRecommendations(dto, guestId, dto.curUserId || '');
   }
 
   @Post('dish-detail')
@@ -162,9 +162,9 @@ export class RestaurantsController {
     const restId = id.split('_')[0];
     const rest = allRestaurants.find(r => r.id === restId);
     if (!rest) throw new NotFoundException();
-    return { 
-      id, 
-      name: `Món ${id}`, 
+    return {
+      id,
+      name: `Món ${id}`,
       restaurant: rest,
       image_url: rest.cover_image, // Fallback to restaurant image for single dish if needed
     };

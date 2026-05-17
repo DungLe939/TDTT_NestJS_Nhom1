@@ -97,7 +97,7 @@ export class SchedulerController {
   async generateDayPlan(@Body() body: any, @Req() req: Request) {
     try {
       const guestId = (req as any).guest_id;
-      const result = await this.schedulerService.createSingleDayPlan(guestId, body.dayIndex);
+      const result = await this.schedulerService.createSingleDayPlan(guestId, body.dayIndex, body.curUserId);
       return { success: true, ...result };
     } catch (error) {
 

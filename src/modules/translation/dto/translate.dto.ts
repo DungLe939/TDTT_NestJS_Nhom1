@@ -8,4 +8,8 @@ export class TranslateDto {
     @IsOptional()
     @IsEnum(['en2vi', 'vi2en'])
     method?: 'en2vi' | 'vi2en';
+
+    @IsOptional()
+    @IsString()
+    curUserId?: string;
 }

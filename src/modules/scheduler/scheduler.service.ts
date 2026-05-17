@@ -6,6 +6,7 @@ import { RawFilterHelper } from './utils/raw-filter';
 import { PlanCacheHelper } from './utils/plan-cache';
 import { calculateDistance } from './algorithms/haversine';
 import { ShopeeFoodLoader } from './utils/shopeefood-loader';
+import { AchievementService } from '../achievements/achievements.service';
 
 @Injectable()
 export class SchedulerService {
@@ -15,6 +16,7 @@ export class SchedulerService {
     private readonly scoringHelper: ScoringHelper,
     private readonly planCacheHelper: PlanCacheHelper,
     private readonly shopeeFoodLoader: ShopeeFoodLoader,
+    private readonly achievementService: AchievementService,
   ) { }
 
   // Hàm lấy tọa độ từ Keyword
@@ -160,7 +162,7 @@ export class SchedulerService {
    *    mà KHÔNG cần gọi lại AI.
    * 4. Lấy dữ liệu gốc từ ShopeeFood (như img, price_range, openingHours) đắp vào kết quả trả về.
    */
-  async createSingleDayPlan(guestId: string, dayIndex: number) {
+  async createSingleDayPlan(guestId: string, dayIndex: number, curUser?: string) {
     const cache = await this.planCacheHelper.get(guestId);
     if (!cache) {
       throw new Error(
@@ -213,6 +215,13 @@ export class SchedulerService {
         };
       }
     }
+
+    // Log activity: GROUP_TASTE_USED
+    await this.achievementService.handleActivityEvent({
+      userId: curUser ?? "",
+      type: 'GROUP_TASTE_USED',
+      occurredAt: new Date(),
+    }).catch();
 
     return {
       day: dayIndex + 1,
