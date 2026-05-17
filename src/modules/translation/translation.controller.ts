@@ -15,7 +15,8 @@ export class TranslationController {
         try {
             const result = await this.translationService.translate(
                 translateDto.text,
-                translateDto.method || 'en2vi'
+                translateDto.method || 'en2vi',
+                translateDto.curUserId || ''
             );
 
             return {

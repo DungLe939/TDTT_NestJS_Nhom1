@@ -3,6 +3,7 @@ import { AchievementService } from './achievements.service';
 import { CreateAchievementDto } from './dto/create-achievement.dto';
 import { CreateRewardDto } from './dto/create-reward.dto';
 import { RedeemRewardDto } from './dto/redeem-reward.dto';
+import { LogActivityDto } from './dto/log-activity.dto';
 
 @Controller()
 export class AchievementsController {
@@ -69,6 +70,26 @@ export class AchievementsController {
     @UsePipes(new ValidationPipe({ transform: true }))
     async redeemVoucher(@Body() dto: RedeemRewardDto) {
         return this.achievementsService.redeemVoucher(dto.userId, dto.userRewardId);
+    }
+
+    /**
+     * POST /achievements/activity
+     * Endpoint công khai cho các feature không có backend NestJS riêng
+     * (ví dụ: FoodScan dùng FastAPI ngoài) để ghi nhận sự kiện thành tích.
+     *
+     * Ví dụ: Frontend gọi sau khi scan món ăn thành công:
+     *   POST /achievements/activity { userId, type: 'FOOD_SCANNED', occurredAt }
+     */
+    @Post('achievements/activity')
+    @UsePipes(new ValidationPipe({ transform: true }))
+    async logActivity(@Body() dto: LogActivityDto) {
+        await this.achievementsService.handleActivityEvent({
+            userId: dto.userId,
+            type: dto.type,
+            occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : new Date(),
+            payload: dto.payload as any,
+        });
+        return { success: true };
     }
 
     /**

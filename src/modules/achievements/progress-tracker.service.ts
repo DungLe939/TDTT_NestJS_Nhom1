@@ -8,29 +8,23 @@ export class ProgressTrackerService {
     private readonly collectionName = 'progress_trackers';
 
     /**
-     * Lấy tiến độ của user đối với một achievement nào đó
+     * Lấy tiến độ của user đối với một achievement nào đó.
+     * Dùng deterministic doc ID thay vì query để tránh vấn đề race condition.
      */
     async getTracker(userId: string, achievementId: string): Promise<ProgressTracker | null> {
-        const snapshot = await db.collection(this.collectionName)
-            .where('userId', '==', userId)
-            .where('achievementId', '==', achievementId)
-            .limit(1)
-            .get();
-
-        if (snapshot.empty) return null;
-
-        const doc = snapshot.docs[0];
-        const data = doc.data();
-        return {
-            id: doc.id,
-            ...data
-        } as ProgressTracker;
+        const docId = `${userId}_${achievementId}`;
+        const doc = await db.collection(this.collectionName).doc(docId).get();
+        if (!doc.exists) return null;
+        return { id: doc.id, ...doc.data() } as ProgressTracker;
     }
 
     /**
-     * Tạo tiến độ của user đối với một achievement nào đó
+     * Tạo tiến độ của user đối với một achievement nào đó.
+     * Dùng set() với merge:false — idempotent: nếu doc đã tồn tại (race condition) thì
+     * lần thứ hai sẽ không ghi đè, Firestore sẽ trả về lỗi mà ta bỏ qua (catch).
      */
     async createTracker(userId: string, achievementId: string, requiredCount: number): Promise<ProgressTracker> {
+        const docId = `${userId}_${achievementId}`;
         const tracker: ProgressTracker = {
             userId,
             achievementId,
@@ -40,12 +34,17 @@ export class ProgressTrackerService {
             isCompleted: false,
         };
 
-        const docRef = await db.collection(this.collectionName).add(tracker);
-        return { ...tracker, id: docRef.id };
+        const docRef = db.collection(this.collectionName).doc(docId);
+        await docRef.set(tracker).catch(() => {
+            this.logger.warn(`Tracker ${docId} already exists (concurrent write), skipping create.`);
+        });
+
+        return { ...tracker, id: docId };
     }
 
     /**
-     * Cập nhật tiến độ của user đối với một achievement nào đó
+     * Cập nhật tiến độ của user đối với một achievement nào đó.
+     * trackerId giờ là deterministic key `${userId}_${achievementId}`.
      */
     async updateProgress(trackerId: string, currentCount: number, requiredCount: number): Promise<ProgressTracker> {
         const progressPercent = Math.min(Math.floor((currentCount / requiredCount) * 100), 100);
@@ -62,7 +61,6 @@ export class ProgressTrackerService {
 
         await db.collection(this.collectionName).doc(trackerId).update(updateData);
 
-        // Lấy document hiện tại để merge với updateData (thay vì đọc lại toàn bộ)
         const existingDoc = await db.collection(this.collectionName).doc(trackerId).get();
         const existingData = existingDoc.data() || {};
 

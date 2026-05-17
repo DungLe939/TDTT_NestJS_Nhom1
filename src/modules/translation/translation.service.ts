@@ -1,11 +1,14 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
+import { AchievementService } from '../achievements/achievements.service';
 
 @Injectable()
 export class TranslationService implements OnModuleInit, OnModuleDestroy {
     private pythonProcess: ChildProcess | null = null;
     private messageQueue: Array<{ resolve: Function; reject: Function }> = [];
+
+    constructor(private readonly achievementService: AchievementService) { }
 
     async onModuleInit() {
         this.startPythonProcess();
@@ -60,13 +63,21 @@ export class TranslationService implements OnModuleInit, OnModuleDestroy {
 
     async translate(
         text: string,
-        method: 'en2vi' | 'vi2en' = 'en2vi'
+        method: 'en2vi' | 'vi2en' = 'en2vi',
+        curUserId: string
     ): Promise<{
         input: string;
         output: string;
         method: string;
         sentiment?: { label: string; score: number };
     }> {
+        // Thông báo sự kiện cho feature Quests: TEXT_TRANSLATED
+        await this.achievementService.handleActivityEvent({
+            userId: curUserId,
+            type: 'TEXT_TRANSLATED',
+            occurredAt: new Date(),
+        }).catch();
+
         return new Promise((resolve, reject) => {
             if (!this.pythonProcess || !this.pythonProcess.stdin) {
                 reject(new Error('Python process not initialized'));

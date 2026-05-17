@@ -15,9 +15,10 @@ import { RestaurantsController } from './restaurants.controller';
 import { RestaurantsService } from './restaurants.service';
 import { EngineModule } from '../engine/engine.module';
 import { GuestSessionMiddleware } from '../../common/middlewares/guest-session.middleware';
+import { AchievementsModule } from '../achievements/achievements.module';
 
 @Module({
-  imports: [EngineModule],
+  imports: [EngineModule, AchievementsModule],
   controllers: [RestaurantsController],
   providers: [RestaurantsService],
   exports: [RestaurantsService],
