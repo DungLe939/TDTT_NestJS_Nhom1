@@ -109,7 +109,7 @@ export class EngineService {
 
       if (filteredDishes.length === 0) {
         this.logger.warn('Vẫn không có kết quả → loại bỏ giới hạn ngân sách...');
-        filteredDishes = this.filterDishes(allDishes, currentLocation, groupDistance * 3, Infinity, 0, new Set());
+        filteredDishes = this.filterDishes(allDishes, currentLocation, groupDistance * 3, Infinity, 0, groupAllergies);
       }
     }
 
@@ -125,10 +125,10 @@ export class EngineService {
 
     // ---- Scoring (Dish-based with POC Pipeline) ----
     const scoredDishes = filteredDishes.map(({ dish, distance }) => {
-      // Step 1: Vectorization (nếu dữ liệu DB chưa có vector)
-      const dishVector = (dish.restaurant && dish.restaurant.tasteVector && dish.restaurant.tasteVector.length === 7)
-        ? dish.restaurant.tasteVector
-        : vectorizeTags(dish.tags);
+      // Step 1: Vectorization
+      // Luôn sinh vector riêng cho TỪNG MÓN ĂN dựa trên tên và mô tả,
+      // thay vì dùng chung vector của toàn bộ nhà hàng, để đảm bảo độ chính xác.
+      const dishVector = vectorizeTags(dish.tags, dish.name, dish.description);
 
       // Step 3 & 4: Similarity & Aggregation
       // Tạo một đối tượng IRestaurant tạm thời để dùng với computeIndividualSimilarities
@@ -258,7 +258,8 @@ export class EngineService {
       if (minRating > 0 && dish.rating < minRating) continue;
 
       if (allergyList.length > 0) {
-        const dishContent = `${dish.name} ${dish.tags.join(' ')}`.toLowerCase();
+        // Kiểm tra dị ứng trong tên, mô tả và tags của món ăn
+        const dishContent = `${dish.name} ${dish.description || ''} ${(dish.tags || []).join(' ')}`.toLowerCase();
         const hasAllergenInDish = allergyList.some((a) =>
           dishContent.includes(a),
         );

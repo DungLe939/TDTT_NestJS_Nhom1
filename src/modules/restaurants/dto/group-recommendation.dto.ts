@@ -21,11 +21,11 @@ export class UserPreferenceDto {
   @IsString()
   userId?: string;
 
-  /** Vector khẩu vị 8 chiều, cùng không gian với nhà hàng. */
+  /** Vector khẩu vị 7 chiều, cùng không gian với nhà hàng. */
   @IsArray()
   @IsNumber({}, { each: true })
-  @ArrayMinSize(8)
-  @ArrayMaxSize(8)
+  @ArrayMinSize(7)
+  @ArrayMaxSize(7)
   tasteVector!: number[];
 
   /** Ngân sách tối đa (VND). */

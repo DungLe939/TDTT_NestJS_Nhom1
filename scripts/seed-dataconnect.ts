@@ -48,8 +48,8 @@ async function seedData() {
 
 
   for (const shop of shops) {
-    if (!shop.menu) continue;
-    for (const food of shop.menu) {
+    if (!shop.foods) continue;
+    for (const food of shop.foods) {
       const categoryName = (food.name.split(' ')[0] || 'Khác').toLowerCase();
       const displayCategory = categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
       if (!categoryMap.has(displayCategory)) {
@@ -58,20 +58,16 @@ async function seedData() {
     }
   }
 
-
   for (const [name, _] of categoryMap) {
     const slug = generateSlug(name);
     try {
       const res = await executeMutation('CreateCategory', { name, slug });
       categoryMap.set(name, res.data.category_insert.id);
-
     } catch (e: any) {
-
     }
   }
 
   // 2. Chèn dữ liệu Shop và FoodItems
-
   for (const shop of shops) {
     try {
       const openTime = shop.opening_hours?.open || '07:00';
@@ -99,10 +95,9 @@ async function seedData() {
 
       const shopId = shopRes.data.shop_insert.id;
 
-
-      if (shop.menu && shop.menu.length > 0) {
+      if (shop.foods && shop.foods.length > 0) {
         let foodCount = 0;
-        for (const food of shop.menu) {
+        for (const food of shop.foods) {
           const categoryName = (food.name.split(' ')[0] || 'Khác').toLowerCase();
           const displayCategory = categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
           const categoryId = categoryMap.get(displayCategory);
@@ -127,10 +122,8 @@ async function seedData() {
             });
             foodCount++;
           } catch (e: any) {
-
           }
         }
-
       }
     } catch (e: any) {
 

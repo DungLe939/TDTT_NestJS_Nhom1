@@ -31,8 +31,13 @@ export class ClusteringHelper {
     currentLocation: LocationDto, //vị trí hiện tại
   ) {
     // 1. Trích xuất tọa độ [lng, lat] từ danh sách nhà hàng để nạp vào thuật toán
+    // Thêm một độ lệch ngẫu nhiên cực nhỏ (jitter) để tránh lỗi infinite loop của skmeans
+    // khi tất cả các nhà hàng có tọa độ giống hệt nhau.
     const points: number[][] = rawRestaurants.map(
-      (r) => r.location.coordinates,
+      (r) => [
+        r.location.coordinates[0] + (Math.random() - 0.5) * 0.00001,
+        r.location.coordinates[1] + (Math.random() - 0.5) * 0.00001
+      ],
     );
 
     /**
@@ -40,9 +45,11 @@ export class ClusteringHelper {
      * Phân chia 'points' thành 'travelDays' cụm.
      * ví dụ đi 3 ngày thì chia thành 3 cụm
      * Thuật toán chọn ra 'travelDays' tâm, quán nào ở gần tâm nào nhất thì sẽ nằm trong cụm tương ứng
-     * của tâm đó
+     * của tâm đó.
+     * Lưu ý: Nếu số lượng điểm (nhà hàng) ít hơn số ngày, ta phải giảm số cụm xuống để tránh skmeans bị treo.
      */
-    const res = skmeans(points, travelDays);
+    const k = Math.min(travelDays, points.length);
+    const res = skmeans(points, k);
 
     /**
      * 3. Mapping: Khởi tạo danh sách các cụm ClusterDto.
@@ -133,6 +140,15 @@ export class ClusteringHelper {
     let currentPivot: number[] = [currentLocation.lng, currentLocation.lat];
 
     for (let i = 0; i < travelDays; i++) {
+      // Nếu hết cụm (vì số cụm k < travelDays), lặp lại cụm cuối cùng đã chọn
+      if (remainingClusters.length === 0 && orderedPlan.length > 0) {
+        orderedPlan.push({
+          day: i + 1,
+          cluster: orderedPlan[orderedPlan.length - 1].cluster,
+        });
+        continue;
+      }
+
       let closestIndex = 0;
       let minDistance = Infinity; //lưu khoảng cách ngắn nhất
 

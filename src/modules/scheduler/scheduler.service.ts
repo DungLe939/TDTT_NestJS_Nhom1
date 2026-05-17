@@ -93,7 +93,9 @@ export class SchedulerService {
    * 4. Lưu toàn bộ kết quả vào RAM Cache. Bước này CHƯA GỌI AI, giúp tiết kiệm thời gian đáng kể.
    */
   async preparePlanData(body: any, guestId: string) {
-    const { budget, currentLocation, preferences, travelDays } = body;
+    const { currentLocation, preferences } = body;
+    const budget = Number(body.budget);
+    const travelDays = Number(body.travelDays);
 
     if (!currentLocation || !currentLocation.lat || !currentLocation.lng) {
       throw new Error(
